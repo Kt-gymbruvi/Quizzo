@@ -1,0 +1,40 @@
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
+import App from '../App.tsx'
+
+function renderApp(pfad = '/') {
+  return render(
+    <MemoryRouter initialEntries={[pfad]}>
+      <App />
+    </MemoryRouter>,
+  )
+}
+
+describe('Startseite', () => {
+  it('zeigt Titel und beide Knöpfe', () => {
+    renderApp()
+    expect(screen.getByRole('heading', { name: 'Quizzo' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Quiz leiten' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Mitspielen' })).toBeInTheDocument()
+  })
+
+  it('zeigt einen Verbindungsstatus an', async () => {
+    renderApp()
+    expect(
+      await screen.findByText(/Server noch nicht eingerichtet|Verbunden|Keine Verbindung/),
+    ).toBeInTheDocument()
+  })
+
+  it('Knopf Quiz leiten führt zur Lehrkraft-Seite', async () => {
+    renderApp()
+    await userEvent.click(screen.getByRole('link', { name: 'Quiz leiten' }))
+    expect(screen.getByRole('heading', { name: 'Quiz leiten' })).toBeInTheDocument()
+  })
+
+  it('Knopf Mitspielen führt zur Schüler-Seite', async () => {
+    renderApp()
+    await userEvent.click(screen.getByRole('link', { name: 'Mitspielen' }))
+    expect(screen.getByRole('heading', { name: 'Mitspielen' })).toBeInTheDocument()
+  })
+})
