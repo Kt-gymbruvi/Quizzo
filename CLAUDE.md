@@ -20,6 +20,9 @@ Quizzo ist eine Live-Quiz-Web-App für den Schulunterricht (eigener Name, eigene
 - Nur eingeladene Lehrkräfte (Selbst-Registrierung in Supabase abgeschaltet), Anmeldung mit E-Mail und Passwort.
 - Datenbank-Änderungen als nummerierte SQL-Dateien in `supabase/migrations/`; die Lehrkraft führt sie im SQL Editor aus (Anleitung: `supabase/EINRICHTUNG.md`).
 - In Tests wird Supabase durch eine Attrappe ersetzt (`src/test/fakeSupabase.ts`), Tests sprechen nie mit dem echten Server.
+- SQL-Migrationen werden mit PGlite gegen einen Supabase-Nachbau getestet (`src/test/sql/`), inkl. RLS und Rechten von `anon`/`authenticated`.
+- Schüler haben keinen Tabellenzugriff; sie nutzen nur die Funktionen `spiel_beitreten`, `spiel_zustand_schueler`, `antwort_abgeben` (security definer, Spieler-Token). Punkte berechnet der Server.
+- Spieldaten werden beim Beenden gelöscht; Spiele älter als 6 Stunden räumt `spiele_aufraeumen()` automatisch weg.
 
 ## Datenschutz
 - Schüler brauchen kein Konto, nur PIN und Spitzname.

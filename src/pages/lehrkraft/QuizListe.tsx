@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Knopf, LehrkraftKopf, Meldung } from '../../components.tsx'
 import { ladeQuizze, loescheQuiz, type QuizUebersicht } from '../../lib/quizze.ts'
+import { erstelleSpiel } from '../../lib/spiel.ts'
 import { fehlerText } from '../../lib/supabase.ts'
 
 const datumFormat = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' })
@@ -11,6 +12,8 @@ export default function QuizListe() {
   const hinweis = (location.state as { hinweis?: string } | null)?.hinweis
   const [quizze, setQuizze] = useState<QuizUebersicht[] | null>(null)
   const [fehler, setFehler] = useState<string | null>(null)
+  const [startet, setStartet] = useState<string | null>(null)
+  const navigate = useNavigate()
 
   const laden = useCallback(() => {
     ladeQuizze()
@@ -22,6 +25,17 @@ export default function QuizListe() {
   }, [])
 
   useEffect(laden, [laden])
+
+  async function spielen(q: QuizUebersicht) {
+    setStartet(q.id)
+    try {
+      const spiel = await erstelleSpiel(q.id)
+      navigate(`/leiten/spiel/${spiel.id}`)
+    } catch (err) {
+      setFehler(fehlerText(err))
+      setStartet(null)
+    }
+  }
 
   async function loeschen(q: QuizUebersicht) {
     if (!window.confirm(`Quiz „${q.titel}“ wirklich löschen? Das kann nicht rückgängig gemacht werden.`)) return
@@ -68,6 +82,14 @@ export default function QuizListe() {
                   {q.anzahlFragen} {q.anzahlFragen === 1 ? 'Frage' : 'Fragen'} · geändert {datumFormat.format(new Date(q.geaendert_am))}
                 </p>
               </div>
+              <Knopf
+                onClick={() => spielen(q)}
+                disabled={q.anzahlFragen === 0 || startet !== null}
+                className="!py-4 !text-2xl"
+                aria-label={`${q.titel} spielen`}
+              >
+                {startet === q.id ? 'Spiel wird erstellt …' : '▶ Spielen'}
+              </Knopf>
               <div className="flex gap-3">
                 <Link
                   to={`/leiten/quiz/${q.id}`}

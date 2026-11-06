@@ -12,14 +12,7 @@ import {
   type EditorFrage,
 } from '../../lib/quizze.ts'
 import { fehlerText } from '../../lib/supabase.ts'
-
-// Eigene Antwortfarben mit Buchstaben (gut unterscheidbar, auch bei Farbschwäche)
-const ANTWORT_STIL = [
-  { buchstabe: 'A', farbe: 'bg-sky-500' },
-  { buchstabe: 'B', farbe: 'bg-rose-500' },
-  { buchstabe: 'C', farbe: 'bg-emerald-500' },
-  { buchstabe: 'D', farbe: 'bg-violet-500' },
-]
+import { ANTWORT_STIL } from '../../lib/antwortStil.ts'
 
 export default function QuizEditor() {
   const { id } = useParams()

@@ -4,6 +4,7 @@ import Startseite from './pages/Startseite.tsx'
 import QuizLeiten, { NurAngemeldet } from './pages/QuizLeiten.tsx'
 import QuizEditor from './pages/lehrkraft/QuizEditor.tsx'
 import Passwort from './pages/lehrkraft/Passwort.tsx'
+import SpielLeiten from './pages/lehrkraft/SpielLeiten.tsx'
 import Mitspielen from './pages/Mitspielen.tsx'
 
 export default function App() {
@@ -17,6 +18,14 @@ export default function App() {
           element={
             <NurAngemeldet>
               <QuizEditor />
+            </NurAngemeldet>
+          }
+        />
+        <Route
+          path="/leiten/spiel/:id"
+          element={
+            <NurAngemeldet>
+              <SpielLeiten />
             </NurAngemeldet>
           }
         />

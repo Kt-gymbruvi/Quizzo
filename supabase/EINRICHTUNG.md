@@ -42,6 +42,14 @@ Die App nutzt Links, die direkt auf die Seite „Passwort festlegen“ führen.
 
 Dann kannst du dich sofort unter „Quiz leiten“ anmelden. Eine E-Mail wird dafür nicht verschickt.
 
+## 6. Live-Spiel (Etappe 3)
+Wie in Schritt 1: Inhalt von [`migrations/002_spiel.sql`](migrations/002_spiel.sql) im **SQL Editor** ausführen.
+Danach gibt es die Tabellen `spiele`, `spieler` und `antworten` (alle mit RLS).
+
+Echtzeit: Die App nutzt Supabase Realtime (Broadcast), um Handys sofort über den nächsten Schritt zu informieren.
+Falls das in den Realtime-Einstellungen gesperrt ist, funktioniert das Spiel trotzdem – die Geräte fragen
+zusätzlich alle 1,5–2 Sekunden nach.
+
 ## Weitere Lehrkräfte
 - **Am einfachsten:** wie in Schritt 5 ein Konto mit Startpasswort anlegen. Die Lehrkraft ändert es nach der ersten Anmeldung über „Passwort ändern“.
 - **Per E-Mail-Einladung** (Users → Add user → Send invitation): Der eingebaute E-Mail-Versand von Supabase schickt nur an Mitglieder deines Supabase-Teams und nur wenige Mails pro Stunde. Für Einladungen an Kolleginnen und Kollegen muss vorher ein eigener SMTP-Server eingetragen werden (Authentication → Emails → SMTP Settings). Das gilt genauso für „Passwort vergessen?“.

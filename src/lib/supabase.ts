@@ -45,6 +45,8 @@ export function db(): SupabaseClient {
 /** Übersetzt typische Supabase-Fehlermeldungen ins Deutsche. */
 export function fehlerText(fehler: unknown): string {
   const msg = fehler instanceof Error ? fehler.message : typeof fehler === 'object' && fehler && 'message' in fehler ? String((fehler as { message: unknown }).message) : String(fehler)
+  // Eigene Meldungen aus den Datenbank-Funktionen sind schon deutsch
+  if (msg.startsWith('QUIZZO: ')) return msg.slice('QUIZZO: '.length)
   if (/invalid login credentials/i.test(msg)) return 'E-Mail-Adresse oder Passwort ist falsch.'
   if (/email not confirmed/i.test(msg)) return 'Die E-Mail-Adresse wurde noch nicht bestätigt.'
   if (/rate limit|too many/i.test(msg)) return 'Zu viele Versuche. Bitte warte einen Moment.'
