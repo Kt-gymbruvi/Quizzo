@@ -6,8 +6,9 @@ Stand: November 2026. ✅ = fertig, 🔨 = in Arbeit, ⏳ = geplant
 - ✅ Etappe 1: Startseite, Supabase-Verbindung, Deployment auf GitHub Pages
 - ✅ Etappe 2: Lehrkraft-Login (nur eingeladen), Quizze anlegen/bearbeiten
 - ✅ Etappe 3: Live-Spiel (PIN, Lobby, Countdown, Auswertung, Endstand, Daten löschen)
+- ✅ Etappe 4: neun Fragetypen, Import/Export, Wieder-Einsteigen nach „Zurück“, Handy-Ansicht ohne Scrollen
 
-## Frageneditor (Etappe 4 ✅ gebaut, noch nicht veröffentlicht · Medien in Etappe 5 ⏳)
+## Frageneditor (Etappe 4 ✅ veröffentlicht · Medien in Etappe 5 ⏳)
 | Nr. | Fragetyp | Interner Name | Punkte | Etappe |
 |---|---|---|---|---|
 | 1 | Multiple Choice (eine oder mehrere richtig, 2–6 Antworten) | `auswahl` | ja | 4 |
@@ -22,6 +23,10 @@ Stand: November 2026. ✅ = fertig, 🔨 = in Arbeit, ⏳ = geplant
 | 10 | Audio und Video (sowie Bilder zu Fragen) | – | – | 5 |
 
 Außerdem in Etappe 4: Punkte pro Frage (keine/normal/doppelt), Quiz importieren/exportieren (JSON, siehe `docs/QUIZ-DATEIFORMAT.md`), Quiz und einzelne Fragen kopieren.
+
+## Kleinigkeiten ⏳
+- Schieberegler: Jahreszahlen ohne Tausenderpunkt anzeigen (1975 statt 1.975)
+- „Passwort vergessen?“ braucht einen eigenen SMTP-Server in Supabase
 
 ## Spielmodi (ab Etappe 6 ⏳)
 - Classic (= heutiges Live-Spiel)
