@@ -39,9 +39,9 @@ Außerdem in Etappe 4: Punkte pro Frage (keine/normal/doppelt), Quiz importieren
 - Selbstlernen
 - Hausaufgaben
 - Prüfung
-- ✅ Turnier – Etappe 7, gebaut, noch nicht veröffentlicht: nach dem Endstand „Runde 2 mit anderem Quiz“,
+- ✅ Turnier – Etappe 7, veröffentlicht: nach dem Endstand „Runde 2 mit anderem Quiz“,
   dieselben Mitspielenden und Teams, Punkte laufen weiter, Antworten der Vorrunde werden gelöscht
-- ✅ Wiederholung – Etappe 7, gebaut, noch nicht veröffentlicht: falsch beantwortete Fragen merkt sich nur das
+- ✅ Wiederholung – Etappe 7, veröffentlicht: falsch beantwortete Fragen merkt sich nur das
   Handy des Schülers (max. 50, 30 Tage), Übungsseite `#/wiederholen` ohne Zeitdruck, richtig geübte verschwinden
 
 ### Vor den Spielmodi zu klären (Datenschutz)
