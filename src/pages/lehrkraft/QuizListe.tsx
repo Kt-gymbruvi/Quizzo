@@ -5,6 +5,9 @@ import { exportiereQuiz, importiereQuiz, pruefeQuiz } from '../../lib/fragetypen
 import { ladeQuiz, ladeQuizze, loescheQuiz, speichereQuiz, type QuizUebersicht } from '../../lib/quizze.ts'
 import { erstelleSpiel, type Spielmodus } from '../../lib/spiel.ts'
 import { SpielStarten } from './SpielStarten.tsx'
+import { AufgabeErstellen } from './AufgabeErstellen.tsx'
+import { AufgabenUebersicht } from './AufgabenUebersicht.tsx'
+import { erstelleAufgabe, type Aufgabenmodus } from '../../lib/aufgaben.ts'
 import { fehlerText } from '../../lib/supabase.ts'
 
 const datumFormat = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' })
@@ -20,6 +23,9 @@ export default function QuizListe() {
   const [fehler, setFehler] = useState<string[]>([])
   const [startet, setStartet] = useState<string | null>(null)
   const [startDialog, setStartDialog] = useState<QuizUebersicht | null>(null)
+  const [aufgabeDialog, setAufgabeDialog] = useState<{ quiz: QuizUebersicht; medien: boolean } | null>(null)
+  const [aufgabeLaeuft, setAufgabeLaeuft] = useState(false)
+  const [aufgabenStand, setAufgabenStand] = useState(0)
   const navigate = useNavigate()
   const dateiWahl = useRef<HTMLInputElement>(null)
 
@@ -48,6 +54,29 @@ export default function QuizListe() {
       setFehler([fehlerText(err)])
       setStartet(null)
       setStartDialog(null)
+    }
+  }
+
+  async function aufgabeOeffnen(q: QuizUebersicht) {
+    setAufgabeDialog({ quiz: q, medien: false })
+    try {
+      const quiz = await ladeQuiz(q.id)
+      if (quiz.fragen.some((f) => f.medium)) setAufgabeDialog((d) => (d?.quiz.id === q.id ? { ...d, medien: true } : d))
+    } catch {
+      /* Hinweis ist nur eine Zugabe */
+    }
+  }
+
+  async function aufgabeErstellen(q: QuizUebersicht, modus: Aufgabenmodus, frist: Date | null, codes: number | null) {
+    setAufgabeLaeuft(true)
+    try {
+      const a = await erstelleAufgabe(q.id, modus, frist, codes)
+      navigate(`/leiten/aufgabe/${a.id}`)
+    } catch (err) {
+      setFehler([fehlerText(err)])
+      setAufgabeDialog(null)
+      setAufgabeLaeuft(false)
+      setAufgabenStand((n) => n + 1)
     }
   }
 
@@ -163,6 +192,9 @@ export default function QuizListe() {
               <Knopf onClick={() => setStartDialog(q)} disabled={q.anzahlFragen === 0 || startet !== null} className="!py-4 !text-2xl" aria-label={`${q.titel} spielen`}>
                 {startet === q.id ? 'Spiel wird erstellt …' : '▶ Spielen'}
               </Knopf>
+              <Knopf art="rahmen" onClick={() => aufgabeOeffnen(q)} disabled={q.anzahlFragen === 0} className="!py-3" aria-label={`${q.titel} als Aufgabe verteilen`}>
+                📝 Als Aufgabe verteilen
+              </Knopf>
               <div className="flex gap-3">
                 <Link
                   to={`/leiten/quiz/${q.id}`}
@@ -185,6 +217,18 @@ export default function QuizListe() {
             </li>
           ))}
         </ul>
+      )}
+
+      <AufgabenUebersicht neuLaden={aufgabenStand} />
+
+      {aufgabeDialog && (
+        <AufgabeErstellen
+          titel={aufgabeDialog.quiz.titel}
+          medienHinweis={aufgabeDialog.medien}
+          laeuft={aufgabeLaeuft}
+          erstellen={(modus, frist, codes) => aufgabeErstellen(aufgabeDialog.quiz, modus, frist, codes)}
+          abbrechen={() => setAufgabeDialog(null)}
+        />
       )}
 
       {startDialog && (

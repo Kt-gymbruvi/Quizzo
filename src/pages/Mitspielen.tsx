@@ -115,6 +115,9 @@ function Beitreten({ beigetreten }: { beigetreten: (t: Teilnahme) => void }) {
         <Knopf type="submit" disabled={laeuft} className="!py-5 !text-2xl">
           {laeuft ? 'Einen Moment …' : 'Los geht’s!'}
         </Knopf>
+        <Link to="/aufgabe" className="text-center text-lg text-white/75 underline underline-offset-4">
+          Du hast einen Aufgaben-Code (mit Buchstaben)? Hier öffnen
+        </Link>
       </form>
     </main>
   )

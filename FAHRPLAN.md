@@ -36,9 +36,13 @@ Außerdem in Etappe 4: Punkte pro Frage (keine/normal/doppelt), Quiz importieren
 - ✅ Team – Etappe 6, veröffentlicht: Lehrkraft wählt 2–6 Teams, automatische Verteilung
   aufs kleinste Team, Umsetzen in der Lobby (⇄), Teampunkte = Durchschnitt der Mitglieder, Siegerpodest der Teams
   (Ideen für später: Teams selbst wählen lassen, ein Handy pro Team)
-- Selbstlernen
-- Hausaufgaben
-- Prüfung
+- ✅ Selbstlernen – Etappe 8, gebaut, noch nicht veröffentlicht: Link/Code, ohne Namen, beliebig oft,
+  Lösung nach jeder Frage; die Lehrkraft sieht nur anonym „wie viele richtig“ pro Frage
+- ✅ Hausaufgaben – Etappe 8, gebaut, noch nicht veröffentlicht: Spitzname, Abgabefrist (max. 14 Tage),
+  jede Frage einmal, Punkte ohne Zeitbonus; Ergebnistabelle und CSV-Export; Löschung 7 Tage nach der Frist
+- ✅ Prüfung – Etappe 8, gebaut, noch nicht veröffentlicht: 1–60 Pseudonym-Codes zum Ausdrucken (Name nur auf Papier),
+  keine Lösungen auf dem Handy, Codes bei Gerätewechsel freigeben; Löschung spätestens nach 30 Tagen
+  (Ideen für später: Fragen in zufälliger Reihenfolge, Medien auf dem Handy erlauben, Frist verlängern)
 - ✅ Turnier – Etappe 7, veröffentlicht: nach dem Endstand „Runde 2 mit anderem Quiz“,
   dieselben Mitspielenden und Teams, Punkte laufen weiter, Antworten der Vorrunde werden gelöscht
 - ✅ Wiederholung – Etappe 7, veröffentlicht: falsch beantwortete Fragen merkt sich nur das
@@ -49,4 +53,5 @@ Die aktuellen Regeln in `CLAUDE.md` sagen: keine Klarnamen, Spieldaten werden na
 - **Selbstlernen / Hausaufgaben** laufen über Tage – Antworten müssen bis zur Abgabefrist gespeichert bleiben (danach löschen).
 - **Prüfung** braucht eine Zuordnung zu einzelnen Schülern – widerspricht „keine Klarnamen“ (Idee: Pseudonym-Codes, deren Zuordnung nur die Lehrkraft offline kennt).
 - ~~Turnier~~ und ~~Wiederholung~~: gelöst ohne zusätzliche Speicherung auf dem Server (siehe oben).
-- Vorschläge für Selbstlernen, Hausaufgaben und Prüfung liegen der Lehrkraft vor (noch nicht entschieden).
+- Selbstlernen, Hausaufgaben, Prüfung: Vorschläge von der Lehrkraft angenommen und in Etappe 8 umgesetzt (Regeln in `CLAUDE.md`).
+- Empfehlung: Einsatz für benotete Prüfungen mit der/dem Datenschutzbeauftragten der Schule abstimmen.

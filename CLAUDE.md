@@ -24,6 +24,7 @@ Quizzo ist eine Live-Quiz-Web-App für den Schulunterricht (eigener Name, eigene
 - Schüler haben keinen Tabellenzugriff; sie nutzen nur die Funktionen `spiel_beitreten`, `spiel_zustand_schueler`, `antwort_abgeben` (security definer, Spieler-Token). Punkte berechnet der Server.
 - Spieldaten werden beim Beenden gelöscht; Spiele älter als 6 Stunden räumt `spiele_aufraeumen()` automatisch weg.
 - Spielmodi: `spiele.modus` ('klassisch' | 'team'), Teams 1–6 in `spieler.team`; Teamwertung (Durchschnitt) liefert `team_wertung()` (nur intern).
+- Aufgaben ohne Live-Spiel (`aufgaben.modus`: 'selbstlernen' | 'hausaufgabe' | 'pruefung', Migration 007): Fragen werden beim Erstellen kopiert; Schüler nutzen nur `aufgabe_oeffnen`, `aufgabe_beitreten`, `aufgabe_zustand`, `aufgabe_antworten`. Abgelaufenes löscht `aufgaben_aufraeumen()` (auch über `spiele_aufraeumen()`).
 - Medien liegen im Storage-Bucket `quizzo-medien` (öffentlich lesbar, Schreiben nur im Ordner `<auth.uid()>/`); Fragen verweisen darauf über `fragen.medium`. Medien nur am Beamer, nie in `spiel_zustand_schueler`. Unbenutzte Dateien löscht `raeumeMedienAuf()` (src/lib/medien.ts).
 
 ## Fahrplan
@@ -34,7 +35,12 @@ Quizzo ist eine Live-Quiz-Web-App für den Schulunterricht (eigener Name, eigene
 - Schüler brauchen kein Konto, nur PIN und Spitzname.
 - Keine Klarnamen, keine E-Mail-Adressen von Schülern erfassen oder speichern.
 - Spieldaten (Spitznamen, Antworten, Punkte) werden nach Spielende gelöscht.
-- Dauerhaft gespeichert werden nur die Quizze der Lehrkraft.
+- Ausnahmen für Aufgaben (von der Lehrkraft entschieden):
+  - Selbstlernen: völlig anonym, gespeichert werden nur Zahlen pro Frage (Versuche, richtig).
+  - Hausaufgabe: Spitzname, Antworten, Punkte; Frist höchstens 14 Tage, automatisch gelöscht 7 Tage nach der Frist.
+  - Prüfung: Pseudonym-Codes (Zuordnung zu Namen nur auf Papier bei der Lehrkraft), Antworten, Punkte; automatisch gelöscht spätestens 30 Tage nach dem Erstellen. Keine Lösungen/Ergebnisse auf dem Schülerhandy.
+  - Die Lehrkraft kann jede Aufgabe jederzeit vorher löschen; Medien werden in Aufgaben nicht gezeigt.
+- Dauerhaft gespeichert werden nur die Quizze der Lehrkraft (und die anonymen Selbstlern-Zahlen, bis die Lehrkraft die Aufgabe löscht).
 - Wiederholung: falsch beantwortete Fragen (Text, Antwortmöglichkeiten, Lösung – kein Spitzname) nur im localStorage des Schülergeräts, max. 50, höchstens 30 Tage; nie auf dem Server.
 
 ## Sicherheit

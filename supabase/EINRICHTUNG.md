@@ -72,6 +72,13 @@ Inhalt von [`migrations/006_turnier.sql`](migrations/006_turnier.sql) im **SQL E
 Danach erscheint im Endstand der Knopf „Turnier: Runde 2 mit anderem Quiz“. Die alte App-Version funktioniert weiter.
 (Die Wiederholung für Schüler braucht keine Datenbank-Änderung – sie läuft nur auf dem Handy.)
 
+## 11. Aufgaben: Selbstlernen, Hausaufgabe, Prüfung (Etappe 8)
+Inhalt von [`migrations/007_aufgaben.sql`](migrations/007_aufgaben.sql) im **SQL Editor** ausführen.
+Danach gibt es bei jedem Quiz den Knopf „📝 Als Aufgabe verteilen“. Die alte App-Version funktioniert weiter.
+Abgelaufene Aufgaben (Hausaufgabe: 7 Tage nach der Frist, Prüfung: 30 Tage nach dem Erstellen) werden gelöscht,
+sobald irgendjemand Quizzo benutzt (Spiel starten, beitreten, Aufgaben öffnen). Wer das zusätzlich zeitgesteuert möchte,
+kann unter **Integrations → Cron** einen nächtlichen Job mit `select public.spiele_aufraeumen();` anlegen (optional).
+
 ## Weitere Lehrkräfte
 - **Am einfachsten:** wie in Schritt 5 ein Konto mit Startpasswort anlegen. Die Lehrkraft ändert es nach der ersten Anmeldung über „Passwort ändern“.
 - **Per E-Mail-Einladung** (Users → Add user → Send invitation): Der eingebaute E-Mail-Versand von Supabase schickt nur an Mitglieder deines Supabase-Teams und nur wenige Mails pro Stunde. Für Einladungen an Kolleginnen und Kollegen muss vorher ein eigener SMTP-Server eingetragen werden (Authentication → Emails → SMTP Settings). Das gilt genauso für „Passwort vergessen?“.

@@ -7,6 +7,8 @@ import Passwort from './pages/lehrkraft/Passwort.tsx'
 import SpielLeiten from './pages/lehrkraft/SpielLeiten.tsx'
 import Mitspielen from './pages/Mitspielen.tsx'
 import Wiederholen from './pages/Wiederholen.tsx'
+import Aufgabe from './pages/Aufgabe.tsx'
+import AufgabeDetail from './pages/lehrkraft/AufgabeDetail.tsx'
 
 export default function App() {
   return (
@@ -30,9 +32,19 @@ export default function App() {
             </NurAngemeldet>
           }
         />
+        <Route
+          path="/leiten/aufgabe/:id"
+          element={
+            <NurAngemeldet>
+              <AufgabeDetail />
+            </NurAngemeldet>
+          }
+        />
         <Route path="/passwort" element={<Passwort />} />
         <Route path="/mitspielen" element={<Mitspielen />} />
         <Route path="/wiederholen" element={<Wiederholen />} />
+        <Route path="/aufgabe" element={<Aufgabe />} />
+        <Route path="/aufgabe/:code" element={<Aufgabe />} />
         <Route path="*" element={<Startseite />} />
       </Routes>
     </AuthProvider>
