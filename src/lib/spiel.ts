@@ -1,8 +1,30 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { db, supabase } from './supabase.ts'
+import type { Frage, FrageTyp } from './fragetypen.ts'
+
+/** Text vergleichbar machen (wie normalisiere() in der Datenbank). */
+export const normalisiere = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
 
 export type SpielStatus = 'lobby' | 'frage' | 'auswertung' | 'ende'
+
+/** Was Schüler während einer Frage sehen (ohne Lösung; Reihenfolge/Zuordnung gemischt). */
+export type Ansicht = {
+  antworten?: string[]
+  mehrfach?: boolean
+  max_zeichen?: number
+  elemente?: string[]
+  links?: string[]
+  rechts?: string[]
+  min?: number
+  max?: number
+  schritt?: number
+  einheit?: string | null
+  text?: string | null
+}
+
+export type LehrkraftFrage = Frage & { ansicht: Ansicht }
+export type AbgegebeneAntwort = { antwort: unknown; anteil: number; punkte: number }
 
 export type LehrkraftZustand = {
   id: string
@@ -11,12 +33,14 @@ export type LehrkraftZustand = {
   frage_nr: number
   anzahl_fragen: number
   quiz_titel: string
-  frage: { text: string; antworten: string[]; richtig: number; zeitlimit: number } | null
+  frage: LehrkraftFrage | null
   restzeit_ms: number | null
   spieler: { id: string; spitzname: string; punkte: number }[]
-  verteilung: number[]
+  antworten: AbgegebeneAntwort[]
   beantwortet: number
 }
+
+export type SchuelerFrage = { typ: FrageTyp; text: string; zeitlimit: number; punkte: number; ansicht: Ansicht }
 
 export type SchuelerZustand = {
   status: SpielStatus
@@ -26,10 +50,11 @@ export type SchuelerZustand = {
   punkte: number
   platz: number
   anzahl_spieler: number
-  frage: { text: string; antworten: string[]; zeitlimit: number } | null
+  frage: SchuelerFrage | null
   restzeit_ms: number | null
-  meine_antwort: { antwort: number; richtig?: boolean; punkte?: number } | null
-  richtige_antwort: number | null
+  meine_antwort: { antwort: unknown; richtig?: boolean; anteil?: number; punkte?: number } | null
+  /** Lösung nach der Auflösung (Format je Fragetyp, null bei Umfrage usw.) */
+  loesung: unknown
 }
 
 export type Teilnahme = { spiel_id: string; spieler_id: string; token: string; spitzname: string }
@@ -61,7 +86,7 @@ export async function loescheSpiel(spielId: string) {
 export const trittBei = (pin: string, spitzname: string) => aufruf<Teilnahme>('spiel_beitreten', { p_pin: pin, p_spitzname: spitzname })
 export const ladeSchuelerZustand = (t: Teilnahme) =>
   aufruf<SchuelerZustand | null>('spiel_zustand_schueler', { p_spieler: t.spieler_id, p_token: t.token })
-export const antworte = (t: Teilnahme, frageNr: number, antwort: number) =>
+export const antworte = (t: Teilnahme, frageNr: number, antwort: unknown) =>
   aufruf<unknown>('antwort_abgeben', { p_spieler: t.spieler_id, p_token: t.token, p_frage_nr: frageNr, p_antwort: antwort })
 
 // Teilnahme nur in diesem Browser-Tab merken (übersteht Neuladen, verschwindet beim Schließen)

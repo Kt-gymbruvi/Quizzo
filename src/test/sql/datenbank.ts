@@ -29,14 +29,30 @@ const SUPABASE_NACHBAU = `
 export const LEHRKRAFT_A = '00000000-0000-4000-8000-00000000000a'
 export const LEHRKRAFT_B = '00000000-0000-4000-8000-00000000000b'
 
-export async function neueDatenbank(): Promise<PGlite> {
+/**
+ * Neue Testdatenbank mit allen Migrationen.
+ * Mit `bisVor` werden nur die Migrationen VOR der genannten Datei ausgeführt (z. B. '003'),
+ * um anschließend mit `restlicheMigrationen` den Umbau bestehender Daten zu testen.
+ */
+export async function neueDatenbank(bisVor?: string): Promise<PGlite> {
   const db = new PGlite()
   await db.exec(SUPABASE_NACHBAU)
+  await db.query('insert into auth.users (id) values ($1), ($2)', [LEHRKRAFT_A, LEHRKRAFT_B])
   for (const pfad of Object.keys(migrationen).sort()) {
+    if (bisVor && dateiname(pfad) >= bisVor) break
     await db.exec(migrationen[pfad])
   }
-  await db.query('insert into auth.users (id) values ($1), ($2)', [LEHRKRAFT_A, LEHRKRAFT_B])
   return db
+}
+
+export async function restlicheMigrationen(db: PGlite, ab: string) {
+  for (const pfad of Object.keys(migrationen).sort()) {
+    if (dateiname(pfad) >= ab) await db.exec(migrationen[pfad])
+  }
+}
+
+function dateiname(pfad: string) {
+  return pfad.split('/').pop()!
 }
 
 type Wer = { rolle: 'anon' } | { rolle: 'authenticated'; uid: string }

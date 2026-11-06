@@ -24,6 +24,10 @@ Quizzo ist eine Live-Quiz-Web-App für den Schulunterricht (eigener Name, eigene
 - Schüler haben keinen Tabellenzugriff; sie nutzen nur die Funktionen `spiel_beitreten`, `spiel_zustand_schueler`, `antwort_abgeben` (security definer, Spieler-Token). Punkte berechnet der Server.
 - Spieldaten werden beim Beenden gelöscht; Spiele älter als 6 Stunden räumt `spiele_aufraeumen()` automatisch weg.
 
+## Fahrplan
+- Geplante Fragetypen und Spielmodi stehen in `FAHRPLAN.md` (dort nach jeder Etappe den Stand aktualisieren).
+- Fragen haben einen Typ (`typ`) und ein JSON-Feld `inhalt`; die Datenbank prüft es mit `frage_gueltig()`, Punkte berechnet `antwort_bewerten()` auf dem Server.
+
 ## Datenschutz
 - Schüler brauchen kein Konto, nur PIN und Spitzname.
 - Keine Klarnamen, keine E-Mail-Adressen von Schülern erfassen oder speichern.

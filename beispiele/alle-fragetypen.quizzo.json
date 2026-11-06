@@ -1,0 +1,89 @@
+{
+  "format": "quizzo-quiz",
+  "version": 1,
+  "titel": "Quizzo-Rundgang: alle Fragetypen",
+  "fragen": [
+    {
+      "typ": "folie",
+      "text": "Willkommen zum Quizzo-Rundgang!",
+      "folientext": "In diesem Quiz lernt ihr alle Fragetypen kennen.\nViel Spaß!"
+    },
+    {
+      "typ": "auswahl",
+      "text": "Welche Stadt ist die Hauptstadt von Frankreich?",
+      "zeitlimit": 20,
+      "punkte": 1,
+      "antworten": ["Lyon", "Paris", "Marseille", "Nizza"],
+      "richtig": [1]
+    },
+    {
+      "typ": "auswahl",
+      "text": "Welche dieser Zahlen sind Primzahlen?",
+      "zeitlimit": 30,
+      "punkte": 1,
+      "antworten": ["2", "9", "11", "15", "17", "21"],
+      "richtig": [0, 2, 4]
+    },
+    {
+      "typ": "wahrfalsch",
+      "text": "Wale sind Fische.",
+      "zeitlimit": 10,
+      "punkte": 1,
+      "richtig": false
+    },
+    {
+      "typ": "freitext",
+      "text": "Wie heißt der längste Fluss Deutschlands?",
+      "zeitlimit": 30,
+      "punkte": 1,
+      "loesungen": ["Rhein"]
+    },
+    {
+      "typ": "reihenfolge",
+      "text": "Sortiere die Planeten nach ihrem Abstand zur Sonne (nah → fern).",
+      "zeitlimit": 45,
+      "punkte": 1,
+      "elemente": ["Merkur", "Venus", "Erde", "Mars", "Jupiter"]
+    },
+    {
+      "typ": "zuordnung",
+      "text": "Ordne die Länder ihren Hauptstädten zu.",
+      "zeitlimit": 60,
+      "punkte": 1,
+      "paare": [
+        { "links": "Italien", "rechts": "Rom" },
+        { "links": "Spanien", "rechts": "Madrid" },
+        { "links": "Polen", "rechts": "Warschau" },
+        { "links": "Schweden", "rechts": "Stockholm" }
+      ]
+    },
+    {
+      "typ": "schieberegler",
+      "text": "In welchem Jahr fiel die Berliner Mauer?",
+      "zeitlimit": 20,
+      "punkte": 2,
+      "min": 1950,
+      "max": 2000,
+      "schritt": 1,
+      "richtig": 1989,
+      "toleranz": 1,
+      "einheit": ""
+    },
+    {
+      "typ": "umfrage",
+      "text": "Welcher Fragetyp hat dir bisher am besten gefallen?",
+      "zeitlimit": 20,
+      "antworten": ["Multiple Choice", "Sortieren", "Zuordnung", "Schieberegler"]
+    },
+    {
+      "typ": "wortwolke",
+      "text": "Beschreibe Quizzo mit einem Wort!",
+      "zeitlimit": 30
+    },
+    {
+      "typ": "offen",
+      "text": "Welches Thema sollen wir als Nächstes als Quiz machen – und warum?",
+      "zeitlimit": 90
+    }
+  ]
+}

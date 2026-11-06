@@ -50,6 +50,11 @@ Echtzeit: Die App nutzt Supabase Realtime (Broadcast), um Handys sofort über de
 Falls das in den Realtime-Einstellungen gesperrt ist, funktioniert das Spiel trotzdem – die Geräte fragen
 zusätzlich alle 1,5–2 Sekunden nach.
 
+## 7. Fragetypen (Etappe 4)
+Inhalt von [`migrations/003_fragetypen.sql`](migrations/003_fragetypen.sql) im **SQL Editor** ausführen.
+Bestehende Fragen werden automatisch zu Multiple-Choice-Fragen umgewandelt; laufende Spiele werden beendet.
+Wichtig: Erst danach die neue App-Version veröffentlichen (die alte App passt nicht zum neuen Format und umgekehrt).
+
 ## Weitere Lehrkräfte
 - **Am einfachsten:** wie in Schritt 5 ein Konto mit Startpasswort anlegen. Die Lehrkraft ändert es nach der ersten Anmeldung über „Passwort ändern“.
 - **Per E-Mail-Einladung** (Users → Add user → Send invitation): Der eingebaute E-Mail-Versand von Supabase schickt nur an Mitglieder deines Supabase-Teams und nur wenige Mails pro Stunde. Für Einladungen an Kolleginnen und Kollegen muss vorher ein eigener SMTP-Server eingetragen werden (Authentication → Emails → SMTP Settings). Das gilt genauso für „Passwort vergessen?“.

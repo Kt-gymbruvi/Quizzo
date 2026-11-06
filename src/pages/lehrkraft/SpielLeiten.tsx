@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import QRCode from 'qrcode'
 import { Knopf, Meldung } from '../../components.tsx'
-import { ANTWORT_STIL } from '../../lib/antwortStil.ts'
+import { FRAGETYPEN } from '../../lib/fragetypen.ts'
+import { BeamerAuswertung, BeamerFrage } from '../../spiel/Beamer.tsx'
 import {
   entferneSpieler,
   ladeLehrkraftZustand,
@@ -58,7 +59,7 @@ export default function SpielLeiten() {
   // Frage automatisch auflösen, wenn die Zeit um ist oder alle geantwortet haben
   const aufgeloest = useRef(-1)
   useEffect(() => {
-    if (z?.status !== 'frage') return
+    if (z?.status !== 'frage' || z.frage?.typ === 'folie') return
     const alleFertig = z.spieler.length > 0 && z.beantwortet >= z.spieler.length
     if ((sekunden === 0 || alleFertig) && aufgeloest.current !== z.frage_nr) {
       aufgeloest.current = z.frage_nr
@@ -123,7 +124,7 @@ export default function SpielLeiten() {
       {fehler && <Meldung art="fehler">{fehler}</Meldung>}
 
       {z.status === 'lobby' && <Lobby z={z} beschaeftigt={beschaeftigt} starten={() => steuern('weiter')} entfernen={entfernen} />}
-      {z.status === 'frage' && <FrageAnsicht z={z} sekunden={sekunden} beschaeftigt={beschaeftigt} aufloesen={() => steuern('aufloesen')} />}
+      {z.status === 'frage' && <FrageAnsicht z={z} sekunden={sekunden} beschaeftigt={beschaeftigt} aufloesen={() => steuern('aufloesen')} weiter={() => steuern('weiter')} />}
       {z.status === 'auswertung' && <Auswertung z={z} beschaeftigt={beschaeftigt} weiter={() => steuern('weiter')} />}
       {z.status === 'ende' && <Endstand z={z} beenden={() => beenden(true)} />}
     </main>
@@ -214,43 +215,52 @@ function FrageAnsicht({
   sekunden,
   beschaeftigt,
   aufloesen,
+  weiter,
 }: {
   z: LehrkraftZustand
   sekunden: number | null
   beschaeftigt: boolean
   aufloesen: () => void
+  weiter: () => void
 }) {
   if (!z.frage) return null
+  const istFolie = z.frage.typ === 'folie'
+  const letzte = z.frage_nr + 1 >= z.anzahl_fragen
   return (
     <div className="flex flex-1 flex-col gap-6">
       <FrageKopf
         z={z}
         rechts={
-          <div className="flex items-center gap-6">
-            <span className="text-2xl">
-              <b className="text-4xl">{z.beantwortet}</b> / {z.spieler.length} Antworten
-            </span>
-            <span
-              className="flex h-24 w-24 items-center justify-center rounded-full bg-quizzo-yellow text-5xl font-black text-quizzo-navy tabular-nums"
-              aria-label="Verbleibende Sekunden"
-            >
-              {sekunden ?? ''}
-            </span>
-            <Knopf art="rahmen" onClick={aufloesen} disabled={beschaeftigt}>
-              Auflösen
+          istFolie ? (
+            <Knopf onClick={weiter} disabled={beschaeftigt} className="!px-10 !py-5 !text-3xl">
+              {letzte ? 'Endergebnis zeigen' : 'Weiter'}
             </Knopf>
-          </div>
+          ) : (
+            <div className="flex items-center gap-6">
+              <span className="text-2xl">
+                <b className="text-4xl">{z.beantwortet}</b> / {z.spieler.length} Antworten
+              </span>
+              <span
+                className="flex h-24 w-24 items-center justify-center rounded-full bg-quizzo-yellow text-5xl font-black text-quizzo-navy tabular-nums"
+                aria-label="Verbleibende Sekunden"
+              >
+                {sekunden ?? ''}
+              </span>
+              <Knopf art="rahmen" onClick={aufloesen} disabled={beschaeftigt}>
+                Auflösen
+              </Knopf>
+            </div>
+          )
         }
       />
-      <h2 className="rounded-3xl bg-white px-8 py-10 text-center text-5xl font-extrabold leading-tight text-quizzo-navy">{z.frage.text}</h2>
-      <ul className="grid flex-1 grid-cols-2 gap-5">
-        {z.frage.antworten.map((a, i) => (
-          <li key={i} className={`flex items-center gap-5 rounded-3xl px-6 py-6 text-4xl font-bold text-white ${ANTWORT_STIL[i].farbe}`}>
-            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/25 text-4xl font-black">{ANTWORT_STIL[i].buchstabe}</span>
-            {a}
-          </li>
-        ))}
-      </ul>
+      <h2
+        className={`rounded-3xl bg-white px-8 text-center font-extrabold leading-tight text-quizzo-navy ${
+          istFolie ? 'py-12 text-6xl' : 'py-8 text-5xl'
+        }`}
+      >
+        {z.frage.text}
+      </h2>
+      <BeamerFrage frage={z.frage} />
     </div>
   )
 }
@@ -273,8 +283,8 @@ function Rangliste({ z, anzahl }: { z: LehrkraftZustand; anzahl: number }) {
 
 function Auswertung({ z, beschaeftigt, weiter }: { z: LehrkraftZustand; beschaeftigt: boolean; weiter: () => void }) {
   if (!z.frage) return null
-  const max = Math.max(1, ...z.verteilung)
   const letzte = z.frage_nr + 1 >= z.anzahl_fragen
+  const bewertet = FRAGETYPEN[z.frage.typ].bewertet
   return (
     <div className="flex flex-1 flex-col gap-6">
       <FrageKopf
@@ -286,32 +296,14 @@ function Auswertung({ z, beschaeftigt, weiter }: { z: LehrkraftZustand; beschaef
         }
       />
       <h2 className="text-4xl font-extrabold leading-tight">{z.frage.text}</h2>
-      <div className="grid flex-1 gap-8 lg:grid-cols-[3fr_2fr]">
-        <ul className="flex flex-col gap-4">
-          {z.frage.antworten.map((a, i) => {
-            const richtig = i === z.frage!.richtig
-            const anzahl = z.verteilung[i] ?? 0
-            return (
-              <li key={i} className={`flex flex-col gap-2 rounded-3xl p-4 transition ${richtig ? 'bg-green-500/25 ring-4 ring-green-400' : 'opacity-60'}`}>
-                <div className="flex items-center justify-between gap-4 text-3xl font-bold">
-                  <span className="flex items-center gap-4">
-                    <span className={`flex h-12 w-12 items-center justify-center rounded-xl text-2xl font-black ${ANTWORT_STIL[i].farbe}`}>{ANTWORT_STIL[i].buchstabe}</span>
-                    {a}
-                    {richtig && <span aria-label="richtige Antwort"> ✓</span>}
-                  </span>
-                  <span className="tabular-nums">{anzahl}</span>
-                </div>
-                <div className="h-4 rounded-full bg-white/10">
-                  <div className={`h-4 rounded-full ${ANTWORT_STIL[i].farbe}`} style={{ width: `${(anzahl / max) * 100}%` }} />
-                </div>
-              </li>
-            )
-          })}
-        </ul>
-        <section className="flex flex-col gap-4">
-          <h3 className="text-3xl font-extrabold text-quizzo-yellow">Bestenliste</h3>
-          <Rangliste z={z} anzahl={5} />
-        </section>
+      <div className={`grid flex-1 gap-8 ${bewertet ? 'lg:grid-cols-[3fr_2fr]' : ''}`}>
+        <BeamerAuswertung frage={z.frage} antworten={z.antworten} />
+        {bewertet && (
+          <section className="flex flex-col gap-4">
+            <h3 className="text-3xl font-extrabold text-quizzo-yellow">Bestenliste</h3>
+            <Rangliste z={z} anzahl={5} />
+          </section>
+        )}
       </div>
     </div>
   )

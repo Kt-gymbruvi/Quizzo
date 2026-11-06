@@ -1,30 +1,41 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Knopf, LehrkraftKopf, Meldung } from '../../components.tsx'
-import { ladeQuizze, loescheQuiz, type QuizUebersicht } from '../../lib/quizze.ts'
+import { exportiereQuiz, importiereQuiz, pruefeQuiz } from '../../lib/fragetypen.ts'
+import { ladeQuiz, ladeQuizze, loescheQuiz, speichereQuiz, type QuizUebersicht } from '../../lib/quizze.ts'
 import { erstelleSpiel } from '../../lib/spiel.ts'
 import { fehlerText } from '../../lib/supabase.ts'
 
 const datumFormat = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' })
 
+function dateiName(titel: string) {
+  return (titel.replace(/[^\p{L}\p{N} _-]+/gu, '').trim().replace(/\s+/g, '-') || 'quiz') + '.quizzo.json'
+}
+
 export default function QuizListe() {
   const location = useLocation()
-  const hinweis = (location.state as { hinweis?: string } | null)?.hinweis
+  const [hinweis, setHinweis] = useState<string | null>((location.state as { hinweis?: string } | null)?.hinweis ?? null)
   const [quizze, setQuizze] = useState<QuizUebersicht[] | null>(null)
-  const [fehler, setFehler] = useState<string | null>(null)
+  const [fehler, setFehler] = useState<string[]>([])
   const [startet, setStartet] = useState<string | null>(null)
   const navigate = useNavigate()
+  const dateiWahl = useRef<HTMLInputElement>(null)
 
   const laden = useCallback(() => {
     ladeQuizze()
       .then((q) => {
         setQuizze(q)
-        setFehler(null)
+        setFehler([])
       })
-      .catch((err) => setFehler(fehlerText(err)))
+      .catch((err) => setFehler([fehlerText(err)]))
   }, [])
 
   useEffect(laden, [laden])
+
+  function melde(text: string) {
+    setFehler([])
+    setHinweis(text)
+  }
 
   async function spielen(q: QuizUebersicht) {
     setStartet(q.id)
@@ -32,7 +43,7 @@ export default function QuizListe() {
       const spiel = await erstelleSpiel(q.id)
       navigate(`/leiten/spiel/${spiel.id}`)
     } catch (err) {
-      setFehler(fehlerText(err))
+      setFehler([fehlerText(err)])
       setStartet(null)
     }
   }
@@ -43,7 +54,55 @@ export default function QuizListe() {
       await loescheQuiz(q.id)
       laden()
     } catch (err) {
-      setFehler(fehlerText(err))
+      setFehler([fehlerText(err)])
+    }
+  }
+
+  async function kopieren(q: QuizUebersicht) {
+    try {
+      const quiz = await ladeQuiz(q.id)
+      await speichereQuiz(null, `${quiz.titel} (Kopie)`.slice(0, 200), quiz.fragen)
+      melde(`„${q.titel}“ wurde kopiert.`)
+      laden()
+    } catch (err) {
+      setFehler([fehlerText(err)])
+    }
+  }
+
+  async function exportieren(q: QuizUebersicht) {
+    try {
+      const quiz = await ladeQuiz(q.id)
+      const blob = new Blob([JSON.stringify(exportiereQuiz(quiz.titel, quiz.fragen), null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = dateiName(quiz.titel)
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setFehler([fehlerText(err)])
+    }
+  }
+
+  async function importieren(e: ChangeEvent<HTMLInputElement>) {
+    const datei = e.target.files?.[0]
+    e.target.value = ''
+    if (!datei) return
+    setHinweis(null)
+    try {
+      if (datei.size > 2_000_000) throw new Error('Die Datei ist zu groß (höchstens 2 MB).')
+      const ergebnis = importiereQuiz(await datei.text())
+      const titel = ergebnis.titel || datei.name.replace(/(\.quizzo)?\.json$/i, '')
+      const probleme = pruefeQuiz(titel, ergebnis.fragen)
+      if (probleme.length) {
+        setFehler([`Die Datei „${datei.name}“ wurde nicht importiert:`, ...probleme])
+        return
+      }
+      await speichereQuiz(null, titel, ergebnis.fragen)
+      melde(`„${titel}“ wurde importiert (${ergebnis.fragen.length} Fragen).`)
+      laden()
+    } catch (err) {
+      setFehler([err instanceof Error && !('code' in err) ? err.message : fehlerText(err)])
     }
   }
 
@@ -52,23 +111,39 @@ export default function QuizListe() {
       <LehrkraftKopf />
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-5xl font-extrabold">Meine Quizze</h2>
-        <Link
-          to="/leiten/quiz/neu"
-          className="rounded-2xl bg-quizzo-yellow px-7 py-4 text-2xl font-extrabold text-quizzo-navy shadow-[0_5px_0_var(--color-quizzo-yellow-dark)] transition hover:brightness-105 active:translate-y-1 active:shadow-none"
-        >
-          + Neues Quiz
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Knopf art="rahmen" onClick={() => dateiWahl.current?.click()} className="!py-4">
+            Importieren
+          </Knopf>
+          <input ref={dateiWahl} type="file" accept=".json,application/json" className="hidden" onChange={importieren} aria-label="Quiz-Datei importieren" />
+          <Link
+            to="/leiten/quiz/neu"
+            className="rounded-2xl bg-quizzo-yellow px-7 py-4 text-2xl font-extrabold text-quizzo-navy shadow-[0_5px_0_var(--color-quizzo-yellow-dark)] transition hover:brightness-105 active:translate-y-1 active:shadow-none"
+          >
+            + Neues Quiz
+          </Link>
+        </div>
       </div>
 
       {hinweis && <Meldung art="erfolg">{hinweis}</Meldung>}
-      {fehler && <Meldung art="fehler">{fehler}</Meldung>}
+      {fehler.length === 1 && <Meldung art="fehler">{fehler[0]}</Meldung>}
+      {fehler.length > 1 && (
+        <div role="alert" className="rounded-2xl bg-red-500/20 px-5 py-4 text-lg font-semibold text-red-100 ring-2 ring-red-400/60">
+          <p>{fehler[0]}</p>
+          <ul className="mt-1 list-disc pl-6">
+            {fehler.slice(1).map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
-      {quizze === null && !fehler && <p className="text-2xl text-white/70">Quizze werden geladen …</p>}
+      {quizze === null && fehler.length === 0 && <p className="text-2xl text-white/70">Quizze werden geladen …</p>}
 
       {quizze?.length === 0 && (
         <div className="flex flex-col items-center gap-3 rounded-3xl border-3 border-dashed border-white/25 px-6 py-16 text-center">
           <p className="text-3xl font-bold">Noch keine Quizze</p>
-          <p className="text-xl text-white/70">Lege mit „+ Neues Quiz“ dein erstes Quiz an.</p>
+          <p className="text-xl text-white/70">Lege mit „+ Neues Quiz“ dein erstes Quiz an oder importiere eine Quiz-Datei.</p>
         </div>
       )}
 
@@ -82,12 +157,7 @@ export default function QuizListe() {
                   {q.anzahlFragen} {q.anzahlFragen === 1 ? 'Frage' : 'Fragen'} · geändert {datumFormat.format(new Date(q.geaendert_am))}
                 </p>
               </div>
-              <Knopf
-                onClick={() => spielen(q)}
-                disabled={q.anzahlFragen === 0 || startet !== null}
-                className="!py-4 !text-2xl"
-                aria-label={`${q.titel} spielen`}
-              >
+              <Knopf onClick={() => spielen(q)} disabled={q.anzahlFragen === 0 || startet !== null} className="!py-4 !text-2xl" aria-label={`${q.titel} spielen`}>
                 {startet === q.id ? 'Spiel wird erstellt …' : '▶ Spielen'}
               </Knopf>
               <div className="flex gap-3">
@@ -100,6 +170,14 @@ export default function QuizListe() {
                 <Knopf art="leise" onClick={() => loeschen(q)} aria-label={`${q.titel} löschen`}>
                   Löschen
                 </Knopf>
+              </div>
+              <div className="flex gap-3 text-base">
+                <button className="flex-1 rounded-xl bg-white/5 py-2 font-semibold text-white/80 hover:bg-white/15" onClick={() => kopieren(q)} aria-label={`${q.titel} kopieren`}>
+                  ⧉ Kopieren
+                </button>
+                <button className="flex-1 rounded-xl bg-white/5 py-2 font-semibold text-white/80 hover:bg-white/15" onClick={() => exportieren(q)} aria-label={`${q.titel} exportieren`}>
+                  ⤓ Exportieren
+                </button>
               </div>
             </li>
           ))}

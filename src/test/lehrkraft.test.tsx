@@ -90,12 +90,41 @@ describe('Quizze verwalten (angemeldet)', () => {
     await userEvent.type(screen.getByLabelText('Fragetext 1'), 'Hauptstadt von Frankreich?')
     await userEvent.type(screen.getByLabelText('Frage 1 Antwort A'), 'Lyon')
     await userEvent.type(screen.getByLabelText('Frage 1 Antwort C'), 'Paris')
+    await userEvent.click(screen.getByRole('button', { name: 'Frage 1: Antwort A ist richtig' })) // A abwählen
     await userEvent.click(screen.getByRole('button', { name: 'Frage 1: Antwort C ist richtig' }))
     await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
     expect(fakeSupabase.rpc).toHaveBeenCalledWith('quiz_speichern', {
       p_id: null,
       p_titel: 'Hauptstädte',
-      p_fragen: [{ text: 'Hauptstadt von Frankreich?', antworten: ['Lyon', 'Paris'], richtig: 1, zeitlimit: 20 }],
+      p_fragen: [{ typ: 'auswahl', text: 'Hauptstadt von Frankreich?', zeitlimit: 20, punkte: 1, inhalt: { antworten: ['Lyon', 'Paris'], richtig: [1] } }],
+    })
+  })
+
+  it('legt Fragen verschiedener Typen an und speichert sie im richtigen Format', async () => {
+    renderApp('/leiten/quiz/neu')
+    await userEvent.type(await screen.findByLabelText('Titel des Quiz'), 'Gemischt')
+    // Frage 1 auf Richtig/Falsch umstellen
+    await userEvent.selectOptions(screen.getByLabelText('Fragetyp 1'), 'wahrfalsch')
+    await userEvent.type(screen.getByLabelText('Fragetext 1'), 'Wale sind Fische.')
+    await userEvent.click(screen.getByRole('button', { name: 'Frage 1: Aussage ist falsch' }))
+    // Frage 2: Freitext mit zwei Schreibweisen
+    await userEvent.click(screen.getByRole('button', { name: /\+ ⌨ Freitext/ }))
+    await userEvent.type(screen.getByLabelText('Fragetext 2'), 'Hauptstadt von Deutschland?')
+    await userEvent.type(screen.getByLabelText('Frage 2 Lösung 1'), 'Berlin')
+    await userEvent.click(screen.getByRole('button', { name: '+ weitere Schreibweise' }))
+    await userEvent.type(screen.getByLabelText('Frage 2 Lösung 2'), 'BER')
+    // Frage 3: Folie
+    await userEvent.click(screen.getByRole('button', { name: /\+ ▭ Präsentationsfolie/ }))
+    await userEvent.type(screen.getByLabelText('Fragetext 3'), 'Pause')
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('quiz_speichern', {
+      p_id: null,
+      p_titel: 'Gemischt',
+      p_fragen: [
+        { typ: 'wahrfalsch', text: 'Wale sind Fische.', zeitlimit: 10, punkte: 1, inhalt: { richtig: false } },
+        { typ: 'freitext', text: 'Hauptstadt von Deutschland?', zeitlimit: 30, punkte: 1, inhalt: { loesungen: ['Berlin', 'BER'] } },
+        { typ: 'folie', text: 'Pause', zeitlimit: 20, punkte: 0, inhalt: { text: '' } },
+      ],
     })
   })
 })

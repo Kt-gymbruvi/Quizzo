@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Knopf, Logo, Meldung, ZurueckLink } from '../components.tsx'
-import { ANTWORT_STIL } from '../lib/antwortStil.ts'
+import { HandyAuswertung, HandyEingabe } from '../spiel/Handy.tsx'
 import {
   antworte,
   gemerkteTeilnahme,
@@ -111,7 +111,7 @@ function SchuelerSpiel({ teilnahme, verlassen }: { teilnahme: Teilnahme; verlass
   const [z, setZ] = useState<SchuelerZustand | null | undefined>(undefined)
   const [letzterZustand, setLetzterZustand] = useState<SchuelerZustand | null>(null)
   const [fehler, setFehler] = useState<string | null>(null)
-  const [gesendet, setGesendet] = useState<{ frageNr: number; antwort: number } | null>(null)
+  const [gesendet, setGesendet] = useState<{ frageNr: number } | null>(null)
 
   const laden = useCallback(async () => {
     try {
@@ -136,9 +136,9 @@ function SchuelerSpiel({ teilnahme, verlassen }: { teilnahme: Teilnahme; verlass
     }
   }, [z])
 
-  async function waehlen(antwort: number) {
+  async function waehlen(antwort: unknown) {
     if (!z) return
-    setGesendet({ frageNr: z.frage_nr, antwort })
+    setGesendet({ frageNr: z.frage_nr })
     try {
       await antworte(teilnahme, z.frage_nr, antwort)
       signal()
@@ -207,38 +207,13 @@ function SchuelerSpiel({ teilnahme, verlassen }: { teilnahme: Teilnahme; verlass
           </div>
           <p className="text-xl font-bold leading-snug">{z.frage.text}</p>
           {fehler && <Meldung art="fehler">{fehler}</Meldung>}
-          <div className="grid flex-1 grid-cols-1 gap-3">
-            {z.frage.antworten.map((a, i) => (
-              <button
-                key={i}
-                onClick={() => waehlen(i)}
-                className={`flex min-h-20 items-center gap-4 rounded-2xl px-4 py-3 text-left text-2xl font-bold text-white shadow-[0_5px_0_rgba(0,0,0,0.3)] transition active:translate-y-1 active:shadow-none ${ANTWORT_STIL[i].farbe}`}
-              >
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/25 text-2xl font-black">{ANTWORT_STIL[i].buchstabe}</span>
-                <span className="break-words">{a}</span>
-              </button>
-            ))}
-          </div>
+          {/* key: Eingaben (z. B. Sortierung) bei jeder neuen Frage zurücksetzen */}
+          <HandyEingabe key={z.frage_nr} frage={z.frage} senden={waehlen} />
         </div>
       )
     }
   } else if (z.status === 'auswertung') {
-    const m = z.meine_antwort
-    const richtigText = z.frage && z.richtige_antwort !== null ? z.frage.antworten[z.richtige_antwort] : null
-    inhalt = (
-      <div className={`-mx-5 flex flex-1 flex-col items-center justify-center gap-4 rounded-3xl px-5 text-center ${m?.richtig ? 'bg-green-600' : m ? 'bg-red-600' : 'bg-white/10'}`}>
-        <p className="text-5xl font-black">{m?.richtig ? 'Richtig!' : m ? 'Leider falsch' : 'Keine Antwort'}</p>
-        {m?.richtig && <p className="text-4xl font-black">+{m.punkte}</p>}
-        {!m?.richtig && richtigText && (
-          <p className="text-xl">
-            Richtig war: <b>{richtigText}</b>
-          </p>
-        )}
-        <p className="mt-4 text-2xl font-bold">
-          {z.punkte} Punkte · Platz {z.platz} von {z.anzahl_spieler}
-        </p>
-      </div>
-    )
+    inhalt = <HandyAuswertung z={z} />
   } else if (z.status === 'ende') {
     inhalt = (
       <Mitte>

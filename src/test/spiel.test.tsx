@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import App from '../App.tsx'
-import type { LehrkraftZustand, SchuelerZustand } from '../lib/spiel.ts'
+import type { LehrkraftFrage, LehrkraftZustand, SchuelerFrage, SchuelerZustand } from '../lib/spiel.ts'
 import { eingeloggteSession, fakeSupabase, setzeFakeZurueck } from './fakeSupabase.ts'
 
 function renderApp(pfad: string) {
@@ -27,12 +27,12 @@ function schueler(teil: Partial<SchuelerZustand>): SchuelerZustand {
     frage: null,
     restzeit_ms: null,
     meine_antwort: null,
-    richtige_antwort: null,
+    loesung: null,
     ...teil,
   }
 }
 
-const FRAGE = { text: 'Hauptstadt von Frankreich?', antworten: ['Lyon', 'Paris', 'Nizza'], zeitlimit: 20 }
+const MC: SchuelerFrage = { typ: 'auswahl', text: 'Hauptstadt von Frankreich?', zeitlimit: 20, punkte: 1, ansicht: { antworten: ['Lyon', 'Paris', 'Nizza'], mehrfach: false } }
 
 /** rpc-Attrappe: liefert je nach Funktionsname ein Ergebnis. */
 function rpcAntworten(antworten: Record<string, unknown>) {
@@ -42,6 +42,15 @@ function rpcAntworten(antworten: Record<string, unknown>) {
     return { data: a ?? null, error: null }
   })
 }
+
+/** Rendert die Schüleransicht während einer laufenden Frage. */
+function frageAufHandy(frage: SchuelerFrage) {
+  sessionStorage.setItem('quizzo-teilnahme', JSON.stringify(TEILNAHME))
+  rpcAntworten({ spiel_zustand_schueler: schueler({ status: 'frage', frage_nr: 0, frage, restzeit_ms: 15000 }), antwort_abgeben: { ok: true } })
+  renderApp('/mitspielen')
+}
+const gesendet = (antwort: unknown) =>
+  expect(fakeSupabase.rpc).toHaveBeenCalledWith('antwort_abgeben', { p_spieler: 'p1', p_token: 't1', p_frage_nr: 0, p_antwort: antwort })
 
 describe('Mitspielen (Schüler)', () => {
   beforeEach(() => sessionStorage.clear())
@@ -78,24 +87,95 @@ describe('Mitspielen (Schüler)', () => {
     expect(fakeSupabase.rpc).toHaveBeenCalledWith('spiel_beitreten', { p_pin: '123456', p_spitzname: 'Fuchs' })
   })
 
-  it('zeigt Antwortknöpfe und sendet die gewählte Antwort', async () => {
-    sessionStorage.setItem('quizzo-teilnahme', JSON.stringify(TEILNAHME))
-    rpcAntworten({ spiel_zustand_schueler: schueler({ status: 'frage', frage_nr: 0, frage: FRAGE, restzeit_ms: 15000 }), antwort_abgeben: { ok: true } })
-    renderApp('/mitspielen')
+  it('Multiple Choice (eine richtig): Antippen sendet sofort', async () => {
+    frageAufHandy(MC)
     await userEvent.click(await screen.findByRole('button', { name: /Paris/ }))
-    expect(fakeSupabase.rpc).toHaveBeenCalledWith('antwort_abgeben', { p_spieler: 'p1', p_token: 't1', p_frage_nr: 0, p_antwort: 1 })
+    gesendet([1])
     expect(await screen.findByText('Antwort gesendet!')).toBeInTheDocument()
   })
 
-  it('zeigt nach der Auflösung richtig/falsch und den Platz', async () => {
+  it('Multiple Choice (mehrere richtig): auswählen, dann senden', async () => {
+    frageAufHandy({ ...MC, ansicht: { antworten: ['a', 'b', 'c'], mehrfach: true } })
+    expect(await screen.findByText('Wähle alle richtigen Antworten!')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /c$/ }))
+    await userEvent.click(screen.getByRole('button', { name: /a$/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Antwort senden' }))
+    gesendet([0, 2])
+  })
+
+  it('Richtig/Falsch sendet true oder false', async () => {
+    frageAufHandy({ ...MC, typ: 'wahrfalsch', ansicht: {} })
+    await userEvent.click(await screen.findByRole('button', { name: 'Falsch' }))
+    gesendet(false)
+  })
+
+  it('Freitext sendet den eingetippten Text', async () => {
+    frageAufHandy({ ...MC, typ: 'freitext', ansicht: { max_zeichen: 40 } })
+    await userEvent.type(await screen.findByLabelText('Antwort'), '  Paris ')
+    await userEvent.click(screen.getByRole('button', { name: 'Antwort senden' }))
+    gesendet('Paris')
+  })
+
+  it('Sortieren: Reihenfolge mit Pfeilen ändern und senden', async () => {
+    frageAufHandy({ ...MC, typ: 'reihenfolge', ansicht: { elemente: ['zwei', 'eins', 'drei'] } })
+    await userEvent.click(await screen.findByRole('button', { name: 'eins nach oben' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Antwort senden' }))
+    gesendet(['eins', 'zwei', 'drei'])
+  })
+
+  it('Zuordnung: erst senden, wenn alles eindeutig zugeordnet ist', async () => {
+    frageAufHandy({ ...MC, typ: 'zuordnung', ansicht: { links: ['Hund', 'Katze'], rechts: ['miaut', 'bellt'] } })
+    const senden = await screen.findByRole('button', { name: 'Antwort senden' })
+    expect(senden).toBeDisabled()
+    await userEvent.selectOptions(screen.getByLabelText('Gegenstück zu Hund'), 'bellt')
+    await userEvent.selectOptions(screen.getByLabelText('Gegenstück zu Katze'), 'bellt')
+    expect(screen.getByText('Jedes Gegenstück passt nur einmal.')).toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByLabelText('Gegenstück zu Katze'), 'miaut')
+    await userEvent.click(senden)
+    gesendet(['bellt', 'miaut'])
+  })
+
+  it('Schieberegler: Zahl einstellen und senden', async () => {
+    frageAufHandy({ ...MC, typ: 'schieberegler', ansicht: { min: 0, max: 10, schritt: 1, einheit: 'kg' } })
+    await userEvent.click(await screen.findByRole('button', { name: 'größer' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Antwort senden' }))
+    gesendet(6)
+  })
+
+  it('Präsentationsfolie: nichts zu beantworten', async () => {
+    sessionStorage.setItem('quizzo-teilnahme', JSON.stringify(TEILNAHME))
+    rpcAntworten({ spiel_zustand_schueler: schueler({ status: 'frage', frage_nr: 0, frage: { ...MC, typ: 'folie', ansicht: { text: 'Info' } } }) })
+    renderApp('/mitspielen')
+    expect(await screen.findByText('Schau nach vorne!')).toBeInTheDocument()
+  })
+
+  it('zeigt nach der Auflösung richtig/falsch, die Lösung und den Platz', async () => {
     sessionStorage.setItem('quizzo-teilnahme', JSON.stringify(TEILNAHME))
     rpcAntworten({
-      spiel_zustand_schueler: schueler({ status: 'auswertung', frage_nr: 0, frage: FRAGE, meine_antwort: { antwort: 0, richtig: false, punkte: 0 }, richtige_antwort: 1, punkte: 850, platz: 2 }),
+      spiel_zustand_schueler: schueler({ status: 'auswertung', frage_nr: 0, frage: MC, meine_antwort: { antwort: [0], richtig: false, anteil: 0, punkte: 0 }, loesung: [1], punkte: 850, platz: 2 }),
     })
     renderApp('/mitspielen')
     expect(await screen.findByText('Leider falsch')).toBeInTheDocument()
     expect(screen.getByText('Paris')).toBeInTheDocument()
     expect(screen.getByText(/850 Punkte · Platz 2 von 2/)).toBeInTheDocument()
+  })
+
+  it('Zuordnung mit Teilpunkten: „Teilweise richtig“', async () => {
+    sessionStorage.setItem('quizzo-teilnahme', JSON.stringify(TEILNAHME))
+    const frage: SchuelerFrage = { ...MC, typ: 'zuordnung', ansicht: { links: ['a', 'b', 'c', 'd'], rechts: [] } }
+    rpcAntworten({ spiel_zustand_schueler: schueler({ status: 'auswertung', frage, meine_antwort: { antwort: [], richtig: false, anteil: 0.5, punkte: 420 }, loesung: [] }) })
+    renderApp('/mitspielen')
+    expect(await screen.findByText('Teilweise richtig')).toBeInTheDocument()
+    expect(screen.getByText('+420')).toBeInTheDocument()
+    expect(screen.getByText('2 von 4 Paaren richtig')).toBeInTheDocument()
+  })
+
+  it('Umfrage: kein richtig/falsch, keine Punkte', async () => {
+    sessionStorage.setItem('quizzo-teilnahme', JSON.stringify(TEILNAHME))
+    rpcAntworten({ spiel_zustand_schueler: schueler({ status: 'auswertung', frage: { ...MC, typ: 'umfrage' }, meine_antwort: { antwort: [0], richtig: false, anteil: 0, punkte: 0 } }) })
+    renderApp('/mitspielen')
+    expect(await screen.findByText('Danke für deine Antwort!')).toBeInTheDocument()
+    expect(screen.queryByText(/Platz/)).not.toBeInTheDocument()
   })
 
   it('zeigt den Endstand auch dann noch, wenn die Lehrkraft das Spiel gelöscht hat', async () => {
@@ -112,6 +192,15 @@ describe('Mitspielen (Schüler)', () => {
   })
 })
 
+const MC_L: LehrkraftFrage = {
+  typ: 'auswahl',
+  text: 'Hauptstadt von Frankreich?',
+  zeitlimit: 20,
+  punkte: 1,
+  inhalt: { antworten: ['Lyon', 'Paris', 'Nizza'], richtig: [1] },
+  ansicht: { antworten: ['Lyon', 'Paris', 'Nizza'], mehrfach: false },
+}
+
 function lehrkraftZustand(teil: Partial<LehrkraftZustand>): LehrkraftZustand {
   return {
     id: 's1',
@@ -123,7 +212,7 @@ function lehrkraftZustand(teil: Partial<LehrkraftZustand>): LehrkraftZustand {
     frage: null,
     restzeit_ms: null,
     spieler: [],
-    verteilung: [],
+    antworten: [],
     beantwortet: 0,
     ...teil,
   }
@@ -151,11 +240,11 @@ describe('Spiel leiten (Lehrkraft)', () => {
       spiel_zustand_lehrkraft: lehrkraftZustand({
         status: 'frage',
         frage_nr: 0,
-        frage: { ...FRAGE, richtig: 1 },
+        frage: MC_L,
         restzeit_ms: 15000,
         spieler: [{ id: 'p1', spitzname: 'Fuchs', punkte: 900 }],
         beantwortet: 1,
-        verteilung: [0, 1, 0],
+        antworten: [{ antwort: [1], anteil: 1, punkte: 900 }],
       }),
       spiel_steuern: null,
     })
@@ -164,23 +253,78 @@ describe('Spiel leiten (Lehrkraft)', () => {
     await vi.waitFor(() => expect(fakeSupabase.rpc).toHaveBeenCalledWith('spiel_steuern', { p_spiel: 's1', p_aktion: 'aufloesen' }))
   })
 
+  it('Präsentationsfolie: kein Countdown, „Weiter“ statt „Auflösen“, kein automatisches Auflösen', async () => {
+    rpcAntworten({
+      spiel_zustand_lehrkraft: lehrkraftZustand({
+        status: 'frage',
+        frage_nr: 0,
+        frage: { typ: 'folie', text: 'Pause', zeitlimit: 20, punkte: 0, inhalt: { text: 'Gleich geht es weiter.' }, ansicht: { text: 'Gleich geht es weiter.' } },
+        spieler: [{ id: 'p1', spitzname: 'Fuchs', punkte: 0 }],
+      }),
+      spiel_steuern: null,
+    })
+    renderApp('/leiten/spiel/s1')
+    expect(await screen.findByText('Gleich geht es weiter.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Auflösen' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Weiter' }))
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('spiel_steuern', { p_spiel: 's1', p_aktion: 'weiter' })
+    expect(fakeSupabase.rpc).not.toHaveBeenCalledWith('spiel_steuern', { p_spiel: 's1', p_aktion: 'aufloesen' })
+  })
+
   it('zeigt bei der Auswertung die richtige Antwort und die Bestenliste', async () => {
     rpcAntworten({
       spiel_zustand_lehrkraft: lehrkraftZustand({
         status: 'auswertung',
         frage_nr: 1,
-        frage: { ...FRAGE, richtig: 1 },
+        frage: MC_L,
         spieler: [
           { id: 'p1', spitzname: 'Fuchs', punkte: 1800 },
           { id: 'p2', spitzname: 'Eule', punkte: 900 },
         ],
-        verteilung: [1, 1, 0],
+        antworten: [
+          { antwort: [1], anteil: 1, punkte: 900 },
+          { antwort: [0], anteil: 0, punkte: 0 },
+        ],
       }),
     })
     renderApp('/leiten/spiel/s1')
     expect(await screen.findByLabelText('richtige Antwort')).toBeInTheDocument()
     expect(screen.getByText('Bestenliste')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Endergebnis zeigen' })).toBeInTheDocument()
+  })
+
+  it('Wortwolke: häufige Wörter erscheinen einmal; Antippen blendet aus; keine Bestenliste', async () => {
+    rpcAntworten({
+      spiel_zustand_lehrkraft: lehrkraftZustand({
+        status: 'auswertung',
+        frage_nr: 0,
+        frage: { typ: 'wortwolke', text: 'Lieblingsfach?', zeitlimit: 30, punkte: 0, inhalt: {}, ansicht: {} },
+        antworten: ['Mathe', 'mathe ', 'Kunst', 'Doofwort'].map((antwort) => ({ antwort, anteil: 0, punkte: 0 })),
+      }),
+    })
+    renderApp('/leiten/spiel/s1')
+    const wolke = await screen.findByLabelText('Wortwolke')
+    expect(wolke.querySelectorAll('li')).toHaveLength(3)
+    await userEvent.click(screen.getByRole('button', { name: 'Doofwort' }))
+    expect(screen.queryByRole('button', { name: 'Doofwort' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Bestenliste')).not.toBeInTheDocument()
+  })
+
+  it('Freitext-Auswertung zeigt die akzeptierten Lösungen und die Antworten', async () => {
+    rpcAntworten({
+      spiel_zustand_lehrkraft: lehrkraftZustand({
+        status: 'auswertung',
+        frage_nr: 0,
+        frage: { typ: 'freitext', text: 'Hauptstadt?', zeitlimit: 30, punkte: 1, inhalt: { loesungen: ['Berlin', 'BER'] }, ansicht: { max_zeichen: 40 } },
+        antworten: [
+          { antwort: 'berlin', anteil: 1, punkte: 900 },
+          { antwort: 'Bonn', anteil: 0, punkte: 0 },
+        ],
+      }),
+    })
+    renderApp('/leiten/spiel/s1')
+    expect(await screen.findByText('Berlin / BER')).toBeInTheDocument()
+    expect(screen.getByText(/1 von 2 richtig/)).toBeInTheDocument()
   })
 
   it('Spiel beenden löscht das Spiel nach Rückfrage', async () => {
