@@ -15,6 +15,7 @@ import {
   type Teilnahme,
 } from '../lib/spiel.ts'
 import { fehlerText } from '../lib/supabase.ts'
+import { team, teamName } from '../lib/teams.ts'
 
 // Schüleransicht: fürs Handy optimiert. Kein Konto, nur PIN und Spitzname.
 export default function Mitspielen() {
@@ -181,7 +182,14 @@ function SchuelerSpiel({ teilnahme, verlassen }: { teilnahme: Teilnahme; verlass
           {sekunden}
         </span>
       )}
-      <span className="truncate rounded-full bg-white/10 px-4 py-1 text-lg font-bold">{teilnahme.spitzname}</span>
+      <span className={`truncate rounded-full px-4 py-1 text-lg font-bold ${team(z?.team)?.farbe ?? 'bg-white/10'}`}>
+        {team(z?.team) && (
+          <span className="mr-1.5" aria-label={teamName(z?.team)}>
+            {team(z?.team)!.zeichen}
+          </span>
+        )}
+        {teilnahme.spitzname}
+      </span>
     </header>
   )
 
@@ -204,6 +212,12 @@ function SchuelerSpiel({ teilnahme, verlassen }: { teilnahme: Teilnahme; verlass
     inhalt = (
       <Mitte>
         <p className="text-4xl font-black">Du bist dabei!</p>
+        {team(z.team) && (
+          <p className={`w-full rounded-3xl px-6 py-6 text-4xl font-black ${team(z.team)!.farbe}`}>
+            <span className="block text-xl font-semibold text-white/85">Du spielst im</span>
+            {team(z.team)!.zeichen} {teamName(z.team)}
+          </p>
+        )}
         <p className="text-xl text-white/80">Schau nach vorne – gleich geht’s los.</p>
         <p className="text-lg text-white/60">{z.anzahl_spieler} Mitspielende</p>
       </Mitte>
@@ -258,6 +272,26 @@ function Mitte({ children }: { children: React.ReactNode }) {
 }
 
 function Ergebnis({ z }: { z: SchuelerZustand }) {
+  const eigenes = z.teams?.find((t) => t.team === z.team)
+  if (eigenes) {
+    const medaille = ['🥇', '🥈', '🥉'][eigenes.platz - 1]
+    return (
+      <>
+        <p className="text-2xl font-bold text-white/80">Endstand</p>
+        {medaille && <p className="text-7xl" aria-hidden="true">{medaille}</p>}
+        <p className={`rounded-3xl px-6 py-4 text-4xl font-black ${team(z.team)!.farbe}`}>
+          {team(z.team)!.zeichen} {teamName(z.team)}: Platz {eigenes.platz}
+        </p>
+        <p className="text-2xl">
+          von {z.teams!.length} Teams · {eigenes.punkte} Punkte im Schnitt
+        </p>
+        <p className="text-xl text-white/80">
+          Du selbst: {z.punkte} Punkte (Platz {z.platz} von {z.anzahl_spieler})
+        </p>
+        <p className="text-xl text-white/80">Danke fürs Mitspielen!</p>
+      </>
+    )
+  }
   const medaille = ['🥇', '🥈', '🥉'][z.platz - 1]
   return (
     <>

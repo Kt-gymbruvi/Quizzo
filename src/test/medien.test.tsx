@@ -207,6 +207,9 @@ describe('Medien am Beamer', () => {
     spieler: [{ id: 'p1', spitzname: 'Fuchs', punkte: 0 }],
     antworten: [],
     beantwortet: 0,
+    modus: 'klassisch',
+    anzahl_teams: null,
+    teams: null,
   })
   const zeige = (medium: Frage['medium']) => {
     fakeSupabase.rpc.mockImplementation(async (name: string) => ({ data: name === 'spiel_zustand_lehrkraft' ? zustand(medium) : null, error: null }))

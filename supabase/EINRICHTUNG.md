@@ -62,6 +62,11 @@ nur Bild-, Ton- und Videoformate). Hochladen und Löschen darf jede Lehrkraft nu
 Diesmal ist die Reihenfolge egal: Die alte App-Version funktioniert auch mit der neuen Datenbank weiter.
 Im kostenlosen Supabase-Tarif steht 1 GB Speicher zur Verfügung; Bilder werden beim Hochladen automatisch verkleinert.
 
+## 9. Spielmodi (Etappe 6)
+Inhalt von [`migrations/005_spielmodi.sql`](migrations/005_spielmodi.sql) im **SQL Editor** ausführen.
+Danach kann beim Spielstart „Klassisch“ oder „Team“ gewählt werden. Die alte App-Version funktioniert weiter
+(sie startet einfach klassische Spiele).
+
 ## Weitere Lehrkräfte
 - **Am einfachsten:** wie in Schritt 5 ein Konto mit Startpasswort anlegen. Die Lehrkraft ändert es nach der ersten Anmeldung über „Passwort ändern“.
 - **Per E-Mail-Einladung** (Users → Add user → Send invitation): Der eingebaute E-Mail-Versand von Supabase schickt nur an Mitglieder deines Supabase-Teams und nur wenige Mails pro Stunde. Für Einladungen an Kolleginnen und Kollegen muss vorher ein eigener SMTP-Server eingetragen werden (Authentication → Emails → SMTP Settings). Das gilt genauso für „Passwort vergessen?“.

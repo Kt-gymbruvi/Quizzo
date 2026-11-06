@@ -13,8 +13,10 @@ import {
   useCountdown,
   useRegelmaessig,
   useSpielKanal,
+  wechsleTeam,
   type LehrkraftZustand,
 } from '../../lib/spiel.ts'
+import { TEAMS, team, teamName } from '../../lib/teams.ts'
 import { fehlerText } from '../../lib/supabase.ts'
 
 // Beamer-Ansicht (iPad quer): alles groß und kontrastreich
@@ -90,6 +92,16 @@ export default function SpielLeiten() {
     }
   }
 
+  async function teamWechseln(spielerId: string) {
+    try {
+      await wechsleTeam(spielerId)
+      await laden()
+      signal()
+    } catch (err) {
+      setFehler(fehlerText(err))
+    }
+  }
+
   if (z === undefined) {
     return <Rahmen>{fehler ? <Meldung art="fehler">{fehler}</Meldung> : <p className="text-3xl text-white/70">Spiel wird geladen …</p>}</Rahmen>
   }
@@ -123,7 +135,7 @@ export default function SpielLeiten() {
 
       {fehler && <Meldung art="fehler">{fehler}</Meldung>}
 
-      {z.status === 'lobby' && <Lobby z={z} beschaeftigt={beschaeftigt} starten={() => steuern('weiter')} entfernen={entfernen} />}
+      {z.status === 'lobby' && <Lobby z={z} beschaeftigt={beschaeftigt} starten={() => steuern('weiter')} entfernen={entfernen} teamWechseln={teamWechseln} />}
       {z.status === 'frage' && <FrageAnsicht z={z} sekunden={sekunden} beschaeftigt={beschaeftigt} aufloesen={() => steuern('aufloesen')} weiter={() => steuern('weiter')} />}
       {z.status === 'auswertung' && <Auswertung z={z} beschaeftigt={beschaeftigt} weiter={() => steuern('weiter')} />}
       {z.status === 'ende' && <Endstand z={z} beenden={() => beenden(true)} />}
@@ -140,11 +152,13 @@ function Lobby({
   beschaeftigt,
   starten,
   entfernen,
+  teamWechseln,
 }: {
   z: LehrkraftZustand
   beschaeftigt: boolean
   starten: () => void
   entfernen: (id: string, name: string) => void
+  teamWechseln: (id: string) => void
 }) {
   const link = mitspielLink(z.pin)
   const [qr, setQr] = useState<string | null>(null)
@@ -177,7 +191,9 @@ function Lobby({
             Spiel starten
           </Knopf>
         </div>
-        {z.spieler.length === 0 ? (
+        {z.modus === 'team' && z.anzahl_teams ? (
+          <TeamLobby z={z} entfernen={entfernen} teamWechseln={teamWechseln} />
+        ) : z.spieler.length === 0 ? (
           <p className="text-2xl text-white/70">Warte auf Mitspielende … Zum Entfernen später einfach auf einen Namen tippen.</p>
         ) : (
           <ul className="flex flex-wrap gap-3">
@@ -196,6 +212,75 @@ function Lobby({
         )}
       </section>
     </div>
+  )
+}
+
+/** Lobby im Teamspiel: eine Spalte pro Team. Name antippen = entfernen, ⇄ = ins nächste Team. */
+function TeamLobby({ z, entfernen, teamWechseln }: { z: LehrkraftZustand; entfernen: (id: string, name: string) => void; teamWechseln: (id: string) => void }) {
+  const anzahl = z.anzahl_teams ?? 2
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-xl text-white/70">Alle werden automatisch verteilt. Mit ⇄ setzt du jemanden ins nächste Team, Name antippen entfernt.</p>
+      <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(anzahl, 3)}, minmax(0, 1fr))` }}>
+        {TEAMS.slice(0, anzahl).map((t, i) => {
+          const mitglieder = z.spieler.filter((s) => s.team === i + 1)
+          return (
+            <section key={t.name} className={`flex flex-col gap-2 rounded-3xl bg-quizzo-navy-light p-4 ring-4 ${t.rand}`} aria-label={`Team ${t.name}`}>
+              <h3 className={`rounded-2xl px-4 py-2 text-2xl font-extrabold ${t.farbe}`}>
+                {t.zeichen} {t.name} <span className="font-semibold text-white/80">({mitglieder.length})</span>
+              </h3>
+              <ul className="flex flex-wrap gap-2">
+                {mitglieder.map((s) => (
+                  <li key={s.id} className="flex items-center overflow-hidden rounded-xl bg-white/10 text-xl font-bold">
+                    <button onClick={() => entfernen(s.id, s.spitzname)} title="Antippen zum Entfernen" className="px-3 py-2 hover:bg-red-500/60">
+                      {s.spitzname}
+                    </button>
+                    <button
+                      onClick={() => teamWechseln(s.id)}
+                      aria-label={`${s.spitzname} ins nächste Team`}
+                      title="Ins nächste Team"
+                      className="border-l border-white/15 px-3 py-2 hover:bg-white/20"
+                    >
+                      ⇄
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/** Teamwertung als Balken (Durchschnittspunkte pro Person) */
+function TeamRangliste({ z }: { z: LehrkraftZustand }) {
+  const wertung = z.teams ?? []
+  const max = Math.max(1, ...wertung.map((t) => t.punkte))
+  return (
+    <ol className="flex flex-col gap-3">
+      {wertung.map((w) => {
+        const t = team(w.team)!
+        return (
+          <li key={w.team} className="flex flex-col gap-1">
+            <div className="flex items-baseline justify-between gap-4 text-2xl font-bold">
+              <span>
+                <span className="mr-3 text-quizzo-yellow">{w.platz}.</span>
+                {t.zeichen} {t.name}{' '}
+                <span className="text-lg font-semibold text-white/60">
+                  · {w.mitglieder} {w.mitglieder === 1 ? 'Person' : 'Personen'}
+                </span>
+              </span>
+              <span className="tabular-nums">{w.punkte}</span>
+            </div>
+            <div className="h-5 rounded-full bg-white/10">
+              <div className={`h-5 rounded-full ${t.farbe}`} style={{ width: `${(w.punkte / max) * 100}%` }} />
+            </div>
+          </li>
+        )
+      })}
+    </ol>
   )
 }
 
@@ -314,8 +399,18 @@ function Auswertung({ z, beschaeftigt, weiter }: { z: LehrkraftZustand; beschaef
         <BeamerAuswertung frage={z.frage} antworten={z.antworten} />
         {bewertet && (
           <section className="flex flex-col gap-4">
-            <h3 className="text-3xl font-extrabold text-quizzo-yellow">Bestenliste</h3>
-            <Rangliste z={z} anzahl={5} />
+            {z.modus === 'team' ? (
+              <>
+                <h3 className="text-3xl font-extrabold text-quizzo-yellow">Teamwertung</h3>
+                <p className="-mt-2 text-lg text-white/60">Punkteschnitt pro Person</p>
+                <TeamRangliste z={z} />
+              </>
+            ) : (
+              <>
+                <h3 className="text-3xl font-extrabold text-quizzo-yellow">Bestenliste</h3>
+                <Rangliste z={z} anzahl={5} />
+              </>
+            )}
           </section>
         )}
       </div>
@@ -323,7 +418,56 @@ function Auswertung({ z, beschaeftigt, weiter }: { z: LehrkraftZustand; beschaef
   )
 }
 
+/** Endstand im Teamspiel: Siegerpodest der Teams, darunter die drei besten Einzelnen */
+function TeamEndstand({ z, beenden }: { z: LehrkraftZustand; beenden: () => void }) {
+  const w = z.teams ?? []
+  const stufe = (e: (typeof w)[number] | undefined, hoehe: string) => {
+    const t = e && team(e.team)
+    if (!e || !t) return null
+    return (
+      <div className="flex w-60 flex-col items-center gap-3">
+        <span className="text-center text-4xl font-extrabold">
+          {t.zeichen} {t.name}
+        </span>
+        <span className="text-center text-xl tabular-nums text-white/80">{e.punkte} Punkte im Schnitt</span>
+        <div className={`flex w-full items-start justify-center rounded-t-3xl pt-4 text-6xl font-black text-white ${t.farbe} ${hoehe}`}>{e.platz}</div>
+      </div>
+    )
+  }
+  const gleichstand = w.length > 1 && w[0].punkte === w[1].punkte
+  return (
+    <div className="flex flex-1 flex-col items-center gap-8">
+      <h2 className="text-6xl font-black text-quizzo-yellow">{w[0] && !gleichstand ? `${teamName(w[0].team)} gewinnt!` : 'Endstand'}</h2>
+      <div className="flex items-end justify-center gap-6">
+        {stufe(w[1], 'h-40')}
+        {stufe(w[0], 'h-56')}
+        {stufe(w[2], 'h-28')}
+      </div>
+      {w.length > 3 && (
+        <ol className="flex w-full max-w-2xl flex-col gap-2">
+          {w.slice(3).map((e) => (
+            <li key={e.team} className="flex justify-between rounded-xl bg-quizzo-navy-light px-5 py-2 text-xl font-bold">
+              <span>
+                {e.platz}. {teamName(e.team)}
+              </span>
+              <span className="tabular-nums">{e.punkte}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+      <section className="w-full max-w-2xl">
+        <h3 className="mb-3 text-2xl font-extrabold text-white/80">Beste Einzelne</h3>
+        <Rangliste z={z} anzahl={3} />
+      </section>
+      <Knopf onClick={beenden} className="!px-10 !py-5 !text-2xl">
+        Spiel beenden und Daten löschen
+      </Knopf>
+    </div>
+  )
+}
+
 function Endstand({ z, beenden }: { z: LehrkraftZustand; beenden: () => void }) {
+  if (z.modus === 'team') return <TeamEndstand z={z} beenden={beenden} />
   const [erster, zweiter, dritter] = z.spieler
   const stufe = (s: (typeof z.spieler)[number] | undefined, platz: number, hoehe: string) =>
     s && (

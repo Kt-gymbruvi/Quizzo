@@ -436,6 +436,77 @@ describe('Datenbank', () => {
     })
   })
 
+  describe('Teamspiel', () => {
+    type Wertung = { team: number; punkte: number; mitglieder: number; platz: number }[]
+    type L = Omit<LehrkraftZustand, 'spieler'> & { modus: string; anzahl_teams: number | null; teams: Wertung | null; spieler: { id: string; spitzname: string; punkte: number; team: number | null }[] }
+    let spiel: { id: string; pin: string }
+    const teil: Beitritt[] = []
+    const zustandL = () => rpc<L>(db, A, 'spiel_zustand_lehrkraft', [spiel.id])
+    const zustandS = (b: Beitritt) => rpc<SchuelerZustand & { modus: string; team: number; teams: Wertung }>(db, ANONYM, 'spiel_zustand_schueler', [b.spieler_id, b.token])
+
+    it('klassische Spiele bleiben der Standard (auch für den alten Aufruf ohne Modus)', async () => {
+      const sp = await rpc<{ id: string }>(db, A, 'spiel_erstellen', [quizId])
+      const z = await rpc<L>(db, A, 'spiel_zustand_lehrkraft', [sp.id])
+      expect(z.modus).toBe('klassisch')
+      expect(z.teams).toBeNull()
+    })
+
+    it('prüft Modus und Anzahl der Teams', async () => {
+      await expect(rpc(db, A, 'spiel_erstellen', [quizId, 'turnier', null])).rejects.toThrow('Unbekannter Spielmodus')
+      await expect(rpc(db, A, 'spiel_erstellen', [quizId, 'team', 1])).rejects.toThrow('2 bis 6 Teams')
+      await expect(rpc(db, A, 'spiel_erstellen', [quizId, 'team', 7])).rejects.toThrow('2 bis 6 Teams')
+      await expect(rpc(db, A, 'spiel_erstellen', [quizId, 'team', null])).rejects.toThrow('2 bis 6 Teams')
+    })
+
+    it('verteilt Beitretende gleichmäßig auf die Teams', async () => {
+      spiel = await rpc(db, A, 'spiel_erstellen', [quizId, 'team', 3])
+      for (const name of ['T1', 'T2', 'T3', 'T4', 'T5']) teil.push(await rpc<Beitritt & { team: number }>(db, ANONYM, 'spiel_beitreten', [spiel.pin, name]))
+      expect(teil.map((t) => (t as Beitritt & { team: number }).team)).toEqual([1, 2, 3, 1, 2])
+      const z = await zustandL()
+      expect(z.anzahl_teams).toBe(3)
+      expect(z.teams!.map((t) => t.mitglieder)).toEqual([2, 2, 1])
+    })
+
+    it('Lehrkraft kann in der Lobby umsetzen, Fremde und Schüler nicht', async () => {
+      await rpc(db, A, 'spieler_team_wechseln', [teil[0].spieler_id]) // T1: 1 → 2
+      await rpc(db, A, 'spieler_team_wechseln', [teil[1].spieler_id]) // T2: 2 → 3
+      expect((await zustandL()).spieler.find((s) => s.spitzname === 'T1')!.team).toBe(2)
+      await expect(rpc(db, B, 'spieler_team_wechseln', [teil[0].spieler_id])).rejects.toThrow('Spieler nicht gefunden')
+      await expect(rpc(db, ANONYM, 'spieler_team_wechseln', [teil[0].spieler_id])).rejects.toThrow(/permission denied/)
+      await expect(rpc(db, ANONYM, 'team_wertung', [spiel.id])).rejects.toThrow(/permission denied/)
+      await expect(rpc(db, A, 'team_wertung', [spiel.id])).rejects.toThrow(/permission denied/)
+    })
+
+    it('Teampunkte sind der Durchschnitt der Mitglieder; Schüler sehen ihr Team und die Wertung', async () => {
+      // Teams jetzt: 1 = {T4}, 2 = {T1, T5}, 3 = {T2, T3}
+      await rpc(db, A, 'spiel_steuern', [spiel.id, 'weiter'])
+      await rpc(db, ANONYM, 'antwort_abgeben', [teil[3].spieler_id, teil[3].token, 0, json([1])]) // T4 richtig
+      await rpc(db, ANONYM, 'antwort_abgeben', [teil[0].spieler_id, teil[0].token, 0, json([1])]) // T1 richtig
+      await rpc(db, ANONYM, 'antwort_abgeben', [teil[4].spieler_id, teil[4].token, 0, json([0])]) // T5 falsch
+      await rpc(db, A, 'spiel_steuern', [spiel.id, 'aufloesen'])
+      const punkte = Object.fromEntries((await zustandL()).spieler.map((s) => [s.spitzname, s.punkte]))
+      const w = (await zustandL()).teams!
+      expect(w[0]).toMatchObject({ team: 1, punkte: punkte.T4, mitglieder: 1, platz: 1 })
+      expect(w.find((t) => t.team === 2)).toMatchObject({ punkte: Math.round(punkte.T1 / 2), platz: 2 })
+      expect(w.find((t) => t.team === 3)).toMatchObject({ punkte: 0, platz: 3 })
+
+      const s = await zustandS(teil[0])
+      expect(s.modus).toBe('team')
+      expect(s.team).toBe(2)
+      expect(s.teams).toEqual(w)
+      expect(JSON.stringify(s.teams)).not.toMatch(/T\d/) // keine Spitznamen anderer in der Teamwertung
+    })
+
+    it('nach dem Start kann nicht mehr umgesetzt werden', async () => {
+      await expect(rpc(db, A, 'spieler_team_wechseln', [teil[0].spieler_id])).rejects.toThrow('vor dem Start')
+    })
+
+    it('wer später beitritt, kommt ins kleinste Team', async () => {
+      const spaet = await rpc<Beitritt & { team: number }>(db, ANONYM, 'spiel_beitreten', [spiel.pin, 'Spät'])
+      expect(spaet.team).toBe(1)
+    })
+  })
+
   describe('Schüler sehen bei keinem Fragetyp die Lösung vorab', () => {
     const typen: F[] = [
       { typ: 'auswahl', text: 'x', inhalt: { antworten: ['a', 'b', 'c'], richtig: [0, 2] } },

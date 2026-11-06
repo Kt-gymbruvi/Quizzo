@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { TeamWertung } from './teams.ts'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { db, supabase } from './supabase.ts'
 import type { Frage, FrageTyp } from './fragetypen.ts'
@@ -26,16 +27,22 @@ export type Ansicht = {
 export type LehrkraftFrage = Frage & { ansicht: Ansicht }
 export type AbgegebeneAntwort = { antwort: unknown; anteil: number; punkte: number }
 
+export type Spielmodus = 'klassisch' | 'team'
+
 export type LehrkraftZustand = {
   id: string
   pin: string
+  modus: Spielmodus
+  anzahl_teams: number | null
+  /** Teamwertung (nur im Teamspiel), beste zuerst */
+  teams: TeamWertung | null
   status: SpielStatus
   frage_nr: number
   anzahl_fragen: number
   quiz_titel: string
   frage: LehrkraftFrage | null
   restzeit_ms: number | null
-  spieler: { id: string; spitzname: string; punkte: number }[]
+  spieler: { id: string; spitzname: string; punkte: number; team?: number | null }[]
   antworten: AbgegebeneAntwort[]
   beantwortet: number
 }
@@ -50,6 +57,9 @@ export type SchuelerZustand = {
   punkte: number
   platz: number
   anzahl_spieler: number
+  modus: Spielmodus
+  team: number | null
+  teams: TeamWertung | null
   frage: SchuelerFrage | null
   restzeit_ms: number | null
   meine_antwort: { antwort: unknown; richtig?: boolean; anteil?: number; punkte?: number } | null
@@ -57,7 +67,7 @@ export type SchuelerZustand = {
   loesung: unknown
 }
 
-export type Teilnahme = { spiel_id: string; spieler_id: string; token: string; spitzname: string; /** nur auf dem Gerät gemerkt */ pin?: string }
+export type Teilnahme = { spiel_id: string; spieler_id: string; token: string; spitzname: string; team?: number | null; /** nur auf dem Gerät gemerkt */ pin?: string }
 
 async function aufruf<T>(funktion: string, args: Record<string, unknown>): Promise<T> {
   const { data, error } = await db().rpc(funktion, args)
@@ -66,7 +76,10 @@ async function aufruf<T>(funktion: string, args: Record<string, unknown>): Promi
 }
 
 // --- Lehrkraft ---
-export const erstelleSpiel = (quizId: string) => aufruf<{ id: string; pin: string }>('spiel_erstellen', { p_quiz_id: quizId })
+export const erstelleSpiel = (quizId: string, modus: Spielmodus = 'klassisch', teams: number | null = null) =>
+  aufruf<{ id: string; pin: string }>('spiel_erstellen', { p_quiz_id: quizId, p_modus: modus, p_teams: modus === 'team' ? teams : null })
+/** Teamspiel, Lobby: Spieler ins nächste Team setzen */
+export const wechsleTeam = (spielerId: string) => aufruf<void>('spieler_team_wechseln', { p_spieler: spielerId })
 export const steuereSpiel = (spielId: string, aktion: 'weiter' | 'aufloesen') =>
   aufruf<void>('spiel_steuern', { p_spiel: spielId, p_aktion: aktion })
 export const ladeLehrkraftZustand = (spielId: string) => aufruf<LehrkraftZustand | null>('spiel_zustand_lehrkraft', { p_spiel: spielId })

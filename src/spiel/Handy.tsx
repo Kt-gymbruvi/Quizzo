@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { Knopf } from '../components.tsx'
 import { ANTWORT_STIL, FALSCH_STIL, WAHR_STIL } from '../lib/antwortStil.ts'
 import { FRAGETYPEN } from '../lib/fragetypen.ts'
+import { team, teamName } from '../lib/teams.ts'
 import type { SchuelerFrage, SchuelerZustand } from '../lib/spiel.ts'
 import { zahl } from './Beamer.tsx'
 
@@ -298,6 +299,7 @@ export function HandyAuswertung({ z }: { z: SchuelerZustand }) {
     farbe = 'bg-red-600'
   }
   const loesung = frage ? loesungText(frage, z.loesung) : null
+  const eigenesTeam = z.teams?.find((t) => t.team === z.team)
 
   return (
     <div className={`-mx-4 flex flex-1 flex-col items-center justify-center gap-4 rounded-3xl px-5 py-6 text-center ${farbe}`}>
@@ -309,10 +311,17 @@ export function HandyAuswertung({ z }: { z: SchuelerZustand }) {
           Richtig war: <b>{loesung}</b>
         </div>
       )}
-      {bewertet && (
-        <p className="mt-4 text-2xl font-bold">
-          {z.punkte} Punkte · Platz {z.platz} von {z.anzahl_spieler}
+      {bewertet && eigenesTeam ? (
+        <p className="mt-4 rounded-2xl bg-black/20 px-4 py-2 text-2xl font-bold">
+          {team(z.team)!.zeichen} {teamName(z.team)}: Platz {eigenesTeam.platz} von {z.teams!.length}
+          <span className="block text-lg font-semibold">Du: {z.punkte} Punkte</span>
         </p>
+      ) : (
+        bewertet && (
+          <p className="mt-4 text-2xl font-bold">
+            {z.punkte} Punkte · Platz {z.platz} von {z.anzahl_spieler}
+          </p>
+        )
       )}
     </div>
   )

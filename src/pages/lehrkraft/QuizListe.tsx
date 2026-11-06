@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Knopf, LehrkraftKopf, Meldung } from '../../components.tsx'
 import { exportiereQuiz, importiereQuiz, pruefeQuiz } from '../../lib/fragetypen.ts'
 import { ladeQuiz, ladeQuizze, loescheQuiz, speichereQuiz, type QuizUebersicht } from '../../lib/quizze.ts'
-import { erstelleSpiel } from '../../lib/spiel.ts'
+import { erstelleSpiel, type Spielmodus } from '../../lib/spiel.ts'
+import { SpielStarten } from './SpielStarten.tsx'
 import { fehlerText } from '../../lib/supabase.ts'
 
 const datumFormat = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' })
@@ -18,6 +19,7 @@ export default function QuizListe() {
   const [quizze, setQuizze] = useState<QuizUebersicht[] | null>(null)
   const [fehler, setFehler] = useState<string[]>([])
   const [startet, setStartet] = useState<string | null>(null)
+  const [startDialog, setStartDialog] = useState<QuizUebersicht | null>(null)
   const navigate = useNavigate()
   const dateiWahl = useRef<HTMLInputElement>(null)
 
@@ -37,14 +39,15 @@ export default function QuizListe() {
     setHinweis(text)
   }
 
-  async function spielen(q: QuizUebersicht) {
+  async function spielen(q: QuizUebersicht, modus: Spielmodus, teams: number | null) {
     setStartet(q.id)
     try {
-      const spiel = await erstelleSpiel(q.id)
+      const spiel = await erstelleSpiel(q.id, modus, teams)
       navigate(`/leiten/spiel/${spiel.id}`)
     } catch (err) {
       setFehler([fehlerText(err)])
       setStartet(null)
+      setStartDialog(null)
     }
   }
 
@@ -157,7 +160,7 @@ export default function QuizListe() {
                   {q.anzahlFragen} {q.anzahlFragen === 1 ? 'Frage' : 'Fragen'} · geändert {datumFormat.format(new Date(q.geaendert_am))}
                 </p>
               </div>
-              <Knopf onClick={() => spielen(q)} disabled={q.anzahlFragen === 0 || startet !== null} className="!py-4 !text-2xl" aria-label={`${q.titel} spielen`}>
+              <Knopf onClick={() => setStartDialog(q)} disabled={q.anzahlFragen === 0 || startet !== null} className="!py-4 !text-2xl" aria-label={`${q.titel} spielen`}>
                 {startet === q.id ? 'Spiel wird erstellt …' : '▶ Spielen'}
               </Knopf>
               <div className="flex gap-3">
@@ -182,6 +185,15 @@ export default function QuizListe() {
             </li>
           ))}
         </ul>
+      )}
+
+      {startDialog && (
+        <SpielStarten
+          titel={startDialog.titel}
+          laeuft={startet !== null}
+          starten={(modus, teams) => spielen(startDialog, modus, teams)}
+          abbrechen={() => setStartDialog(null)}
+        />
       )}
     </main>
   )

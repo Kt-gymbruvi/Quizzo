@@ -31,6 +31,9 @@ function schueler(teil: Partial<SchuelerZustand>): SchuelerZustand {
     restzeit_ms: null,
     meine_antwort: null,
     loesung: null,
+    modus: 'klassisch',
+    team: null,
+    teams: null,
     ...teil,
   }
 }
@@ -270,6 +273,9 @@ function lehrkraftZustand(teil: Partial<LehrkraftZustand>): LehrkraftZustand {
     spieler: [],
     antworten: [],
     beantwortet: 0,
+    modus: 'klassisch',
+    anzahl_teams: null,
+    teams: null,
     ...teil,
   }
 }
