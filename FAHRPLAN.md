@@ -36,11 +36,11 @@ Außerdem in Etappe 4: Punkte pro Frage (keine/normal/doppelt), Quiz importieren
 - ✅ Team – Etappe 6, veröffentlicht: Lehrkraft wählt 2–6 Teams, automatische Verteilung
   aufs kleinste Team, Umsetzen in der Lobby (⇄), Teampunkte = Durchschnitt der Mitglieder, Siegerpodest der Teams
   (Ideen für später: Teams selbst wählen lassen, ein Handy pro Team)
-- ✅ Selbstlernen – Etappe 8, gebaut, noch nicht veröffentlicht: Link/Code, ohne Namen, beliebig oft,
+- ✅ Selbstlernen – Etappe 8, veröffentlicht: Link/Code, ohne Namen, beliebig oft,
   Lösung nach jeder Frage; die Lehrkraft sieht nur anonym „wie viele richtig“ pro Frage
-- ✅ Hausaufgaben – Etappe 8, gebaut, noch nicht veröffentlicht: Spitzname, Abgabefrist (max. 14 Tage),
+- ✅ Hausaufgaben – Etappe 8, veröffentlicht: Spitzname, Abgabefrist (max. 14 Tage),
   jede Frage einmal, Punkte ohne Zeitbonus; Ergebnistabelle und CSV-Export; Löschung 7 Tage nach der Frist
-- ✅ Prüfung – Etappe 8, gebaut, noch nicht veröffentlicht: 1–60 Pseudonym-Codes zum Ausdrucken (Name nur auf Papier),
+- ✅ Prüfung – Etappe 8, veröffentlicht: 1–60 Pseudonym-Codes zum Ausdrucken (Name nur auf Papier),
   keine Lösungen auf dem Handy, Codes bei Gerätewechsel freigeben; Löschung spätestens nach 30 Tagen
   (Ideen für später: Fragen in zufälliger Reihenfolge, Medien auf dem Handy erlauben, Frist verlängern)
 - ✅ Turnier – Etappe 7, veröffentlicht: nach dem Endstand „Runde 2 mit anderem Quiz“,
