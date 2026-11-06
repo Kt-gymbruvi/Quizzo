@@ -147,6 +147,20 @@ describe('Medien im Quiz-Editor', () => {
     expect(gespeicherteFrage().medium).toEqual({ art: 'bild', url: SPEICHER_URL + pfad, pfad, beschreibung: 'Karte von Europa' })
   })
 
+  it('Hochladen klappt auch ohne crypto.randomUUID (Test im WLAN über http://192.168…)', async () => {
+    const original = crypto.randomUUID
+    Object.defineProperty(crypto, 'randomUUID', { value: undefined, configurable: true })
+    try {
+      await neuesQuiz()
+      await userEvent.click(screen.getByRole('button', { name: '+ 🖼 Bild' }))
+      fireEvent.change(screen.getByTestId('datei-1'), { target: { files: [datei('karte.png', 'image/png')] } })
+      expect(await screen.findByRole('button', { name: 'Medium entfernen' })).toBeInTheDocument()
+      expect(fakeSpeicher.upload.mock.calls[0][0]).toMatch(/^u1\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.png$/)
+    } finally {
+      Object.defineProperty(crypto, 'randomUUID', { value: original, configurable: true })
+    }
+  })
+
   it('lehnt falsche Dateiformate mit verständlicher Meldung ab', async () => {
     await neuesQuiz()
     await userEvent.click(screen.getByRole('button', { name: '+ 🖼 Bild' }))

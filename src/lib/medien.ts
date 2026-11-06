@@ -49,6 +49,19 @@ async function verkleinereBild(datei: File): Promise<Blob> {
   return blob && blob.type === 'image/webp' && blob.size < datei.size ? blob : datei
 }
 
+/**
+ * Zufällige UUID (Version 4) als Dateiname.
+ * Nicht crypto.randomUUID(): Das gibt es nur auf https-Seiten und localhost, nicht beim Testen im WLAN
+ * (http://192.168…). crypto.getRandomValues() funktioniert überall.
+ */
+export function zufallsId(): string {
+  const b = crypto.getRandomValues(new Uint8Array(16))
+  b[6] = (b[6] & 0x0f) | 0x40 // Version 4
+  b[8] = (b[8] & 0x3f) | 0x80 // Variante RFC 4122
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('')
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
+}
+
 async function nutzerId(): Promise<string> {
   const { data } = await db().auth.getSession()
   const id = data.session?.user.id
@@ -62,7 +75,7 @@ export async function ladeHoch(datei: File, art: DateiArt): Promise<Medium> {
   if (fehler) throw new Error(fehler)
   const inhalt = art === 'bild' ? await verkleinereBild(datei) : datei
   const typ = inhalt.type === 'audio/mp3' ? 'audio/mpeg' : inhalt.type
-  const pfad = `${await nutzerId()}/${crypto.randomUUID()}.${ENDUNG[typ]}`
+  const pfad = `${await nutzerId()}/${zufallsId()}.${ENDUNG[typ]}`
   const speicher = db().storage.from(BUCKET)
   const { error } = await speicher.upload(pfad, inhalt, { contentType: typ, cacheControl: '31536000', upsert: false })
   if (error) throw error
