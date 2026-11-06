@@ -146,7 +146,9 @@ export function BeamerFrage({ frage }: { frage: LehrkraftFrage }) {
 }
 
 const zahlFormat = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 })
-export const zahl = (n: number) => zahlFormat.format(n)
+const ohnePunkt = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2, useGrouping: false })
+/** Zahl auf Deutsch; Tausenderpunkt erst ab fünf Stellen (1975 – nicht 1.975 –, aber 10.000) */
+export const zahl = (n: number) => (Math.abs(n) < 10000 ? ohnePunkt : zahlFormat).format(n)
 
 function Balken({ i, text, anzahl, max, richtig, farbe }: { i: number; text: ReactNode; anzahl: number; max: number; richtig?: boolean; farbe?: string }) {
   const f = farbe ?? ANTWORT_STIL[i].farbe

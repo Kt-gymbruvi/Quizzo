@@ -28,7 +28,7 @@ Ideen für später: Medien auch auf den Handys anzeigen (Schalter pro Frage), Co
 Außerdem in Etappe 4: Punkte pro Frage (keine/normal/doppelt), Quiz importieren/exportieren (JSON, siehe `docs/QUIZ-DATEIFORMAT.md`), Quiz und einzelne Fragen kopieren.
 
 ## Kleinigkeiten ⏳
-- Schieberegler: Jahreszahlen ohne Tausenderpunkt anzeigen (1975 statt 1.975)
+- ✅ Schieberegler: Jahreszahlen ohne Tausenderpunkt (1975 statt 1.975; Punkt erst ab 10.000)
 - „Passwort vergessen?“ braucht einen eigenen SMTP-Server in Supabase
 
 ## Spielmodi (ab Etappe 6)
