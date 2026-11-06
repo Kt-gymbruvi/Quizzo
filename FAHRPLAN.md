@@ -32,8 +32,8 @@ Außerdem in Etappe 4: Punkte pro Frage (keine/normal/doppelt), Quiz importieren
 - „Passwort vergessen?“ braucht einen eigenen SMTP-Server in Supabase
 
 ## Spielmodi (ab Etappe 6)
-- ✅ Klassisch (= bisheriges Live-Spiel) – Etappe 6, gebaut, noch nicht veröffentlicht
-- ✅ Team – Etappe 6, gebaut, noch nicht veröffentlicht: Lehrkraft wählt 2–6 Teams, automatische Verteilung
+- ✅ Klassisch (= bisheriges Live-Spiel) – Etappe 6, veröffentlicht
+- ✅ Team – Etappe 6, veröffentlicht: Lehrkraft wählt 2–6 Teams, automatische Verteilung
   aufs kleinste Team, Umsetzen in der Lobby (⇄), Teampunkte = Durchschnitt der Mitglieder, Siegerpodest der Teams
   (Ideen für später: Teams selbst wählen lassen, ein Handy pro Team)
 - Selbstlernen
