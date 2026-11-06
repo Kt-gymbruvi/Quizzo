@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Logo } from '../components.tsx'
+import { gemerkteTeilnahme } from '../lib/spiel.ts'
 import { pruefeVerbindung, type Verbindungsstatus } from '../lib/supabase.ts'
 
 const statusText: Record<Verbindungsstatus | 'pruefe', string> = {
@@ -12,6 +13,7 @@ const statusText: Record<Verbindungsstatus | 'pruefe', string> = {
 
 export default function Startseite() {
   const [status, setStatus] = useState<Verbindungsstatus | 'pruefe'>('pruefe')
+  const [teilnahme] = useState(() => gemerkteTeilnahme())
 
   useEffect(() => {
     pruefeVerbindung().then(setStatus)
@@ -23,6 +25,16 @@ export default function Startseite() {
         <Logo gross />
         <p className="text-xl text-white/85 sm:text-2xl">Das Live-Quiz für deinen Unterricht</p>
       </div>
+
+      {teilnahme && (
+        <Link
+          to="/mitspielen"
+          className="w-full max-w-md rounded-3xl bg-green-600 px-6 py-5 text-2xl font-extrabold text-white shadow-[0_6px_0_rgba(0,0,0,0.3)] transition active:translate-y-1 active:shadow-none focus:outline-none focus-visible:ring-4 focus-visible:ring-white"
+        >
+          Zurück ins Spiel
+          <span className="block text-lg font-semibold text-white/85">als {teilnahme.spitzname}</span>
+        </Link>
+      )}
 
       <div className="flex w-full max-w-3xl flex-col gap-5 sm:flex-row">
         <Link

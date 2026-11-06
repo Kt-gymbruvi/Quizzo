@@ -14,6 +14,9 @@ function renderApp(pfad: string) {
 }
 
 const TEILNAHME = { spiel_id: 's1', spieler_id: 'p1', token: 't1', spitzname: 'Fuchs' }
+/** So, wie die App eine Teilnahme auf dem Gerät merkt */
+const merkeTestTeilnahme = (extra: Record<string, unknown> = {}) =>
+  localStorage.setItem('quizzo-teilnahme', JSON.stringify({ ...TEILNAHME, pin: '123456', gemerkt: Date.now(), ...extra }))
 
 function schueler(teil: Partial<SchuelerZustand>): SchuelerZustand {
   return {
@@ -45,7 +48,7 @@ function rpcAntworten(antworten: Record<string, unknown>) {
 
 /** Rendert die Schüleransicht während einer laufenden Frage. */
 function frageAufHandy(frage: SchuelerFrage) {
-  sessionStorage.setItem('quizzo-teilnahme', JSON.stringify(TEILNAHME))
+  merkeTestTeilnahme()
   rpcAntworten({ spiel_zustand_schueler: schueler({ status: 'frage', frage_nr: 0, frage, restzeit_ms: 15000 }), antwort_abgeben: { ok: true } })
   renderApp('/mitspielen')
 }
@@ -53,7 +56,7 @@ const gesendet = (antwort: unknown) =>
   expect(fakeSupabase.rpc).toHaveBeenCalledWith('antwort_abgeben', { p_spieler: 'p1', p_token: 't1', p_frage_nr: 0, p_antwort: antwort })
 
 describe('Mitspielen (Schüler)', () => {
-  beforeEach(() => sessionStorage.clear())
+  beforeEach(() => localStorage.clear())
 
   it('übernimmt die PIN aus dem QR-Code-Link', async () => {
     renderApp('/mitspielen?pin=123456')
@@ -143,14 +146,14 @@ describe('Mitspielen (Schüler)', () => {
   })
 
   it('Präsentationsfolie: nichts zu beantworten', async () => {
-    sessionStorage.setItem('quizzo-teilnahme', JSON.stringify(TEILNAHME))
+    merkeTestTeilnahme()
     rpcAntworten({ spiel_zustand_schueler: schueler({ status: 'frage', frage_nr: 0, frage: { ...MC, typ: 'folie', ansicht: { text: 'Info' } } }) })
     renderApp('/mitspielen')
     expect(await screen.findByText('Schau nach vorne!')).toBeInTheDocument()
   })
 
   it('zeigt nach der Auflösung richtig/falsch, die Lösung und den Platz', async () => {
-    sessionStorage.setItem('quizzo-teilnahme', JSON.stringify(TEILNAHME))
+    merkeTestTeilnahme()
     rpcAntworten({
       spiel_zustand_schueler: schueler({ status: 'auswertung', frage_nr: 0, frage: MC, meine_antwort: { antwort: [0], richtig: false, anteil: 0, punkte: 0 }, loesung: [1], punkte: 850, platz: 2 }),
     })
@@ -161,7 +164,7 @@ describe('Mitspielen (Schüler)', () => {
   })
 
   it('Zuordnung mit Teilpunkten: „Teilweise richtig“', async () => {
-    sessionStorage.setItem('quizzo-teilnahme', JSON.stringify(TEILNAHME))
+    merkeTestTeilnahme()
     const frage: SchuelerFrage = { ...MC, typ: 'zuordnung', ansicht: { links: ['a', 'b', 'c', 'd'], rechts: [] } }
     rpcAntworten({ spiel_zustand_schueler: schueler({ status: 'auswertung', frage, meine_antwort: { antwort: [], richtig: false, anteil: 0.5, punkte: 420 }, loesung: [] }) })
     renderApp('/mitspielen')
@@ -171,7 +174,7 @@ describe('Mitspielen (Schüler)', () => {
   })
 
   it('Umfrage: kein richtig/falsch, keine Punkte', async () => {
-    sessionStorage.setItem('quizzo-teilnahme', JSON.stringify(TEILNAHME))
+    merkeTestTeilnahme()
     rpcAntworten({ spiel_zustand_schueler: schueler({ status: 'auswertung', frage: { ...MC, typ: 'umfrage' }, meine_antwort: { antwort: [0], richtig: false, anteil: 0, punkte: 0 } }) })
     renderApp('/mitspielen')
     expect(await screen.findByText('Danke für deine Antwort!')).toBeInTheDocument()
@@ -179,16 +182,69 @@ describe('Mitspielen (Schüler)', () => {
   })
 
   it('zeigt den Endstand auch dann noch, wenn die Lehrkraft das Spiel gelöscht hat', async () => {
-    sessionStorage.setItem('quizzo-teilnahme', JSON.stringify(TEILNAHME))
+    merkeTestTeilnahme()
     rpcAntworten({ spiel_zustand_schueler: schueler({ status: 'ende', platz: 1, punkte: 2400 }) })
     const { unmount } = renderApp('/mitspielen')
     expect(await screen.findByText('Platz 1')).toBeInTheDocument()
     unmount()
+    // Beim nächsten Öffnen gibt es das Spiel nicht mehr: still zurück zum Beitreten
     rpcAntworten({ spiel_zustand_schueler: null })
     renderApp('/mitspielen')
-    expect(await screen.findByText(/beendet oder du wurdest entfernt/)).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Los geht’s!' })).toBeInTheDocument()
+    expect(localStorage.getItem('quizzo-teilnahme')).toBeNull()
+  })
+
+  it('wer während des Spiels entfernt wird, sieht einen Hinweis', async () => {
+    merkeTestTeilnahme()
+    let zustand: SchuelerZustand | null = schueler({})
+    fakeSupabase.rpc.mockImplementation(async () => ({ data: zustand, error: null }))
+    renderApp('/mitspielen')
+    expect(await screen.findByText('Du bist dabei!')).toBeInTheDocument()
+    zustand = null
+    expect(await screen.findByText(/beendet oder du wurdest entfernt/, {}, { timeout: 3000 })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Neues Spiel beitreten' }))
-    expect(sessionStorage.getItem('quizzo-teilnahme')).toBeNull()
+    expect(localStorage.getItem('quizzo-teilnahme')).toBeNull()
+  })
+})
+
+describe('Wieder einsteigen', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('merkt die Teilnahme auf dem Gerät (auch nach Schließen des Tabs)', async () => {
+    rpcAntworten({ spiel_beitreten: TEILNAHME, spiel_zustand_schueler: schueler({}) })
+    renderApp('/mitspielen?pin=123456')
+    await userEvent.type(screen.getByPlaceholderText(/Schlauer Fuchs/), 'Fuchs')
+    await userEvent.click(screen.getByRole('button', { name: 'Los geht’s!' }))
+    expect(await screen.findByText('Du bist dabei!')).toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem('quizzo-teilnahme')!)).toMatchObject({ spieler_id: 'p1', token: 't1', pin: '123456' })
+  })
+
+  it('der QR-Link desselben Spiels führt direkt zurück ins Spiel', async () => {
+    merkeTestTeilnahme()
+    rpcAntworten({ spiel_zustand_schueler: schueler({}) })
+    renderApp('/mitspielen?pin=123456')
+    expect(await screen.findByText('Du bist dabei!')).toBeInTheDocument()
+  })
+
+  it('der Link eines anderen Spiels zeigt das Beitreten-Formular', () => {
+    merkeTestTeilnahme()
+    renderApp('/mitspielen?pin=654321')
+    expect(screen.getByPlaceholderText('123456')).toHaveValue('654321')
+    expect(localStorage.getItem('quizzo-teilnahme')).toBeNull()
+  })
+
+  it('alte Teilnahmen (über 6 Stunden) werden verworfen', () => {
+    merkeTestTeilnahme({ gemerkt: Date.now() - 7 * 60 * 60 * 1000 })
+    renderApp('/mitspielen')
+    expect(screen.getByRole('button', { name: 'Los geht’s!' })).toBeInTheDocument()
+  })
+
+  it('die Startseite bietet „Zurück ins Spiel“ an', async () => {
+    merkeTestTeilnahme()
+    rpcAntworten({ spiel_zustand_schueler: schueler({}) })
+    renderApp('/')
+    await userEvent.click(screen.getByRole('link', { name: /Zurück ins Spiel/ }))
+    expect(await screen.findByText('Du bist dabei!')).toBeInTheDocument()
   })
 })
 

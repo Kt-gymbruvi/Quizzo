@@ -13,4 +13,7 @@ vi.mock('../lib/supabase.ts', async (original) => {
   }
 })
 
-beforeEach(() => setzeFakeZurueck())
+beforeEach(() => {
+  setzeFakeZurueck()
+  if (typeof window !== 'undefined') window.localStorage.clear() // SQL-Tests laufen ohne Browser-Umgebung
+})

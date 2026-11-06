@@ -57,7 +57,7 @@ export type SchuelerZustand = {
   loesung: unknown
 }
 
-export type Teilnahme = { spiel_id: string; spieler_id: string; token: string; spitzname: string }
+export type Teilnahme = { spiel_id: string; spieler_id: string; token: string; spitzname: string; /** nur auf dem Gerät gemerkt */ pin?: string }
 
 async function aufruf<T>(funktion: string, args: Record<string, unknown>): Promise<T> {
   const { data, error } = await db().rpc(funktion, args)
@@ -89,20 +89,29 @@ export const ladeSchuelerZustand = (t: Teilnahme) =>
 export const antworte = (t: Teilnahme, frageNr: number, antwort: unknown) =>
   aufruf<unknown>('antwort_abgeben', { p_spieler: t.spieler_id, p_token: t.token, p_frage_nr: frageNr, p_antwort: antwort })
 
-// Teilnahme nur in diesem Browser-Tab merken (übersteht Neuladen, verschwindet beim Schließen)
+// Teilnahme auf diesem Gerät merken, damit man nach „Zurück“, Neuladen oder versehentlichem
+// Schließen des Tabs wieder ins laufende Spiel kommt. Gespeichert werden nur Spiel-ID, Spieler-ID,
+// Token, Spitzname und PIN – nach 6 Stunden (so lange lebt ein Spiel höchstens) wird es verworfen.
 const SPEICHER = 'quizzo-teilnahme'
+const HOECHSTENS_MS = 6 * 60 * 60 * 1000
 export function merkeTeilnahme(t: Teilnahme | null) {
   try {
-    if (t) sessionStorage.setItem(SPEICHER, JSON.stringify(t))
-    else sessionStorage.removeItem(SPEICHER)
+    if (t) localStorage.setItem(SPEICHER, JSON.stringify({ ...t, gemerkt: Date.now() }))
+    else localStorage.removeItem(SPEICHER)
   } catch {
     /* privater Modus o. Ä. – dann eben ohne Merken */
   }
 }
 export function gemerkteTeilnahme(): Teilnahme | null {
   try {
-    const roh = sessionStorage.getItem(SPEICHER)
-    return roh ? (JSON.parse(roh) as Teilnahme) : null
+    const roh = localStorage.getItem(SPEICHER)
+    if (!roh) return null
+    const { gemerkt, ...t } = JSON.parse(roh) as Teilnahme & { gemerkt?: number }
+    if (!t.spieler_id || !t.token || typeof gemerkt !== 'number' || Date.now() - gemerkt > HOECHSTENS_MS) {
+      localStorage.removeItem(SPEICHER)
+      return null
+    }
+    return t
   } catch {
     return null
   }

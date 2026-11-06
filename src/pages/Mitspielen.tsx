@@ -18,12 +18,22 @@ import { fehlerText } from '../lib/supabase.ts'
 
 // Schüleransicht: fürs Handy optimiert. Kein Konto, nur PIN und Spitzname.
 export default function Mitspielen() {
-  const [teilnahme, setTeilnahme] = useState<Teilnahme | null>(() => gemerkteTeilnahme())
+  const [params] = useSearchParams()
+  const [teilnahme, setTeilnahme] = useState<Teilnahme | null>(() => {
+    const t = gemerkteTeilnahme()
+    // Link/QR-Code eines anderen Spiels: alte Teilnahme vergessen
+    const linkPin = params.get('pin')
+    if (t && linkPin && t.pin && t.pin !== linkPin) {
+      merkeTeilnahme(null)
+      return null
+    }
+    return t
+  })
 
-  function verlassen() {
+  const verlassen = useCallback(() => {
     merkeTeilnahme(null)
     setTeilnahme(null)
-  }
+  }, [])
 
   if (!teilnahme) {
     return (
@@ -58,7 +68,7 @@ function Beitreten({ beigetreten }: { beigetreten: (t: Teilnahme) => void }) {
     }
     setLaeuft(true)
     try {
-      beigetreten(await trittBei(pin, name))
+      beigetreten({ ...(await trittBei(pin, name)), pin })
     } catch (err) {
       setFehler(fehlerText(err))
     } finally {
@@ -113,15 +123,22 @@ function SchuelerSpiel({ teilnahme, verlassen }: { teilnahme: Teilnahme; verlass
   const [fehler, setFehler] = useState<string | null>(null)
   const [gesendet, setGesendet] = useState<{ frageNr: number } | null>(null)
 
+  const ersterAbruf = useRef(true)
   const laden = useCallback(async () => {
     try {
       const neu = await ladeSchuelerZustand(teilnahme)
+      // Gemerktes Spiel gibt es gar nicht mehr (z. B. von gestern): still zurück zum Beitreten
+      if (neu === null && ersterAbruf.current) {
+        verlassen()
+        return
+      }
+      ersterAbruf.current = false
       setZ(neu)
       if (neu) setLetzterZustand(neu)
     } catch (err) {
       setFehler(fehlerText(err))
     }
-  }, [teilnahme])
+  }, [teilnahme, verlassen])
 
   const signal = useSpielKanal(teilnahme.spiel_id, laden)
   useRegelmaessig(laden, 2000, z !== null)
@@ -148,9 +165,22 @@ function SchuelerSpiel({ teilnahme, verlassen }: { teilnahme: Teilnahme; verlass
     laden()
   }
 
+  // Während einer Frage zeigt der Kopf Fragenummer und Countdown statt des Logos (spart Platz)
+  const frageLaeuft = z?.status === 'frage' && z.frage && z.frage.typ !== 'folie'
   const kopf = (
-    <header className="flex items-center justify-between gap-3">
-      <span className="text-2xl font-black text-quizzo-yellow">Quizzo</span>
+    <header className="flex shrink-0 items-center justify-between gap-3">
+      {frageLaeuft ? (
+        <span className="text-lg font-semibold text-white/70">
+          Frage {(z?.frage_nr ?? 0) + 1}/{z?.anzahl_fragen}
+        </span>
+      ) : (
+        <span className="text-2xl font-black text-quizzo-yellow">Quizzo</span>
+      )}
+      {frageLaeuft && sekunden != null && (
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-quizzo-yellow text-2xl font-black text-quizzo-navy tabular-nums" aria-label="Restzeit">
+          {sekunden}
+        </span>
+      )}
       <span className="truncate rounded-full bg-white/10 px-4 py-1 text-lg font-bold">{teilnahme.spitzname}</span>
     </header>
   )
@@ -196,16 +226,8 @@ function SchuelerSpiel({ teilnahme, verlassen }: { teilnahme: Teilnahme; verlass
       )
     } else {
       inhalt = (
-        <div className="flex flex-1 flex-col gap-4">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-lg text-white/70">
-              Frage {z.frage_nr + 1} von {z.anzahl_fragen}
-            </span>
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-quizzo-yellow text-2xl font-black text-quizzo-navy tabular-nums">
-              {sekunden ?? ''}
-            </span>
-          </div>
-          <p className="text-xl font-bold leading-snug">{z.frage.text}</p>
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
+          <p className={`shrink-0 font-bold leading-snug ${z.frage.text.length > 120 ? 'text-base' : z.frage.text.length > 60 ? 'text-lg' : 'text-xl'}`}>{z.frage.text}</p>
           {fehler && <Meldung art="fehler">{fehler}</Meldung>}
           {/* key: Eingaben (z. B. Sortierung) bei jeder neuen Frage zurücksetzen */}
           <HandyEingabe key={z.frage_nr} frage={z.frage} senden={waehlen} />
@@ -223,7 +245,8 @@ function SchuelerSpiel({ teilnahme, verlassen }: { teilnahme: Teilnahme; verlass
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-5 px-5 py-4">
+    // Genau eine Bildschirmhöhe: alle Antworten auf einen Blick, ohne Scrollen
+    <main className="mx-auto flex h-dvh max-w-md flex-col gap-3 overflow-y-auto px-4 py-3">
       {kopf}
       {inhalt}
     </main>
