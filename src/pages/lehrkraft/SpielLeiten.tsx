@@ -13,10 +13,12 @@ import {
   useCountdown,
   useRegelmaessig,
   useSpielKanal,
+  naechsteRunde,
   wechsleTeam,
   type LehrkraftZustand,
 } from '../../lib/spiel.ts'
 import { TEAMS, team, teamName } from '../../lib/teams.ts'
+import { ladeQuizze, type QuizUebersicht } from '../../lib/quizze.ts'
 import { fehlerText } from '../../lib/supabase.ts'
 
 // Beamer-Ansicht (iPad quer): alles groß und kontrastreich
@@ -92,6 +94,20 @@ export default function SpielLeiten() {
     }
   }
 
+  async function rundeStarten(quizId: string) {
+    if (!id) return
+    setBeschaeftigt(true)
+    try {
+      await naechsteRunde(id, quizId)
+      await laden()
+      signal()
+    } catch (err) {
+      setFehler(fehlerText(err))
+    } finally {
+      setBeschaeftigt(false)
+    }
+  }
+
   async function teamWechseln(spielerId: string) {
     try {
       await wechsleTeam(spielerId)
@@ -121,7 +137,10 @@ export default function SpielLeiten() {
       <header className="flex items-center justify-between gap-4">
         <div className="flex items-baseline gap-5">
           <span className="text-4xl font-black text-quizzo-yellow">Quizzo</span>
-          <span className="text-2xl text-white/70">{z.quiz_titel}</span>
+          <span className="text-2xl text-white/70">
+            {z.quiz_titel}
+            {(z.runde ?? 1) > 1 && <span className="ml-3 rounded-lg bg-quizzo-yellow px-3 py-1 text-xl font-extrabold text-quizzo-navy">Runde {z.runde}</span>}
+          </span>
         </div>
         <div className="flex items-center gap-5 text-2xl">
           {z.status !== 'lobby' && (
@@ -138,7 +157,9 @@ export default function SpielLeiten() {
       {z.status === 'lobby' && <Lobby z={z} beschaeftigt={beschaeftigt} starten={() => steuern('weiter')} entfernen={entfernen} teamWechseln={teamWechseln} />}
       {z.status === 'frage' && <FrageAnsicht z={z} sekunden={sekunden} beschaeftigt={beschaeftigt} aufloesen={() => steuern('aufloesen')} weiter={() => steuern('weiter')} />}
       {z.status === 'auswertung' && <Auswertung z={z} beschaeftigt={beschaeftigt} weiter={() => steuern('weiter')} />}
-      {z.status === 'ende' && <Endstand z={z} beenden={() => beenden(true)} />}
+      {z.status === 'ende' && (
+        <Endstand z={z} aktionen={<EndeAktionen beenden={() => beenden(true)} naechsteRunde={rundeStarten} runde={z.runde ?? 1} beschaeftigt={beschaeftigt} />} />
+      )}
     </main>
   )
 }
@@ -419,7 +440,7 @@ function Auswertung({ z, beschaeftigt, weiter }: { z: LehrkraftZustand; beschaef
 }
 
 /** Endstand im Teamspiel: Siegerpodest der Teams, darunter die drei besten Einzelnen */
-function TeamEndstand({ z, beenden }: { z: LehrkraftZustand; beenden: () => void }) {
+function TeamEndstand({ z, aktionen }: { z: LehrkraftZustand; aktionen: React.ReactNode }) {
   const w = z.teams ?? []
   const stufe = (e: (typeof w)[number] | undefined, hoehe: string) => {
     const t = e && team(e.team)
@@ -438,6 +459,7 @@ function TeamEndstand({ z, beenden }: { z: LehrkraftZustand; beenden: () => void
   return (
     <div className="flex flex-1 flex-col items-center gap-8">
       <h2 className="text-6xl font-black text-quizzo-yellow">{w[0] && !gleichstand ? `${teamName(w[0].team)} gewinnt!` : 'Endstand'}</h2>
+      {(z.runde ?? 1) > 1 && <p className="-mt-6 text-2xl text-white/70">Gesamtpunkte aus {z.runde} Runden</p>}
       <div className="flex items-end justify-center gap-6">
         {stufe(w[1], 'h-40')}
         {stufe(w[0], 'h-56')}
@@ -459,15 +481,13 @@ function TeamEndstand({ z, beenden }: { z: LehrkraftZustand; beenden: () => void
         <h3 className="mb-3 text-2xl font-extrabold text-white/80">Beste Einzelne</h3>
         <Rangliste z={z} anzahl={3} />
       </section>
-      <Knopf onClick={beenden} className="!px-10 !py-5 !text-2xl">
-        Spiel beenden und Daten löschen
-      </Knopf>
+      {aktionen}
     </div>
   )
 }
 
-function Endstand({ z, beenden }: { z: LehrkraftZustand; beenden: () => void }) {
-  if (z.modus === 'team') return <TeamEndstand z={z} beenden={beenden} />
+function Endstand({ z, aktionen }: { z: LehrkraftZustand; aktionen: React.ReactNode }) {
+  if (z.modus === 'team') return <TeamEndstand z={z} aktionen={aktionen} />
   const [erster, zweiter, dritter] = z.spieler
   const stufe = (s: (typeof z.spieler)[number] | undefined, platz: number, hoehe: string) =>
     s && (
@@ -480,6 +500,7 @@ function Endstand({ z, beenden }: { z: LehrkraftZustand; beenden: () => void }) 
   return (
     <div className="flex flex-1 flex-col items-center gap-8">
       <h2 className="text-6xl font-black text-quizzo-yellow">Endstand</h2>
+      {(z.runde ?? 1) > 1 && <p className="-mt-6 text-2xl text-white/70">Gesamtpunkte aus {z.runde} Runden</p>}
       <div className="flex items-end justify-center gap-6">
         {stufe(zweiter, 2, 'h-40')}
         {stufe(erster, 1, 'h-56')}
@@ -499,9 +520,75 @@ function Endstand({ z, beenden }: { z: LehrkraftZustand; beenden: () => void }) 
           </ol>
         </div>
       )}
-      <Knopf onClick={beenden} className="!px-10 !py-5 !text-2xl">
-        Spiel beenden und Daten löschen
-      </Knopf>
+      {aktionen}
+    </div>
+  )
+}
+
+/** Knöpfe unter dem Endstand: Turnier mit einem weiteren Quiz fortsetzen oder Spiel beenden */
+function EndeAktionen({
+  beenden,
+  naechsteRunde,
+  runde,
+  beschaeftigt,
+}: {
+  beenden: () => void
+  naechsteRunde: (quizId: string) => void
+  runde: number
+  beschaeftigt: boolean
+}) {
+  const [quizze, setQuizze] = useState<QuizUebersicht[] | null>(null)
+  const [offen, setOffen] = useState(false)
+  const [fehler, setFehler] = useState<string | null>(null)
+
+  function oeffnen() {
+    setOffen(true)
+    ladeQuizze()
+      .then((q) => setQuizze(q.filter((x) => x.anzahlFragen > 0)))
+      .catch((err) => setFehler(fehlerText(err)))
+  }
+
+  return (
+    <div className="flex w-full max-w-3xl flex-col items-center gap-4">
+      <div className="flex flex-wrap justify-center gap-4">
+        {!offen && (
+          <Knopf art="rahmen" onClick={oeffnen} className="!px-8 !py-5 !text-2xl">
+            🏆 Turnier: Runde {runde + 1} mit anderem Quiz
+          </Knopf>
+        )}
+        <Knopf onClick={beenden} className="!px-10 !py-5 !text-2xl">
+          Spiel beenden und Daten löschen
+        </Knopf>
+      </div>
+      {offen && (
+        <section className="flex w-full flex-col gap-3 rounded-3xl bg-quizzo-navy-light p-5 ring-1 ring-white/15" aria-label="Quiz für die nächste Runde">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-2xl font-extrabold">Mit welchem Quiz geht es weiter?</h3>
+            <button onClick={() => setOffen(false)} className="text-lg text-white/70 hover:text-white">
+              Abbrechen
+            </button>
+          </div>
+          <p className="text-lg text-white/70">Alle bleiben im Spiel, die Punkte werden weitergezählt.</p>
+          {fehler && <Meldung art="fehler">{fehler}</Meldung>}
+          {quizze === null && !fehler && <p className="text-xl text-white/70">Quizze werden geladen …</p>}
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {quizze?.map((q) => (
+              <li key={q.id}>
+                <button
+                  onClick={() => naechsteRunde(q.id)}
+                  disabled={beschaeftigt}
+                  className="w-full rounded-2xl bg-white/10 px-4 py-3 text-left text-xl font-bold hover:bg-quizzo-yellow hover:text-quizzo-navy disabled:opacity-50"
+                >
+                  {q.titel}
+                  <span className="block text-base font-semibold opacity-70">
+                    {q.anzahlFragen} {q.anzahlFragen === 1 ? 'Frage' : 'Fragen'}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   )
 }

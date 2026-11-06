@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Logo } from '../components.tsx'
 import { gemerkteTeilnahme } from '../lib/spiel.ts'
+import { ladeUebungen } from '../lib/wiederholung.ts'
 import { pruefeVerbindung, type Verbindungsstatus } from '../lib/supabase.ts'
 
 const statusText: Record<Verbindungsstatus | 'pruefe', string> = {
@@ -14,6 +15,7 @@ const statusText: Record<Verbindungsstatus | 'pruefe', string> = {
 export default function Startseite() {
   const [status, setStatus] = useState<Verbindungsstatus | 'pruefe'>('pruefe')
   const [teilnahme] = useState(() => gemerkteTeilnahme())
+  const [uebungen] = useState(() => ladeUebungen().length)
 
   useEffect(() => {
     pruefeVerbindung().then(setStatus)
@@ -50,6 +52,12 @@ export default function Startseite() {
           Mitspielen
         </Link>
       </div>
+
+      {uebungen > 0 && (
+        <Link to="/wiederholen" className="rounded-2xl bg-white/10 px-6 py-4 text-2xl font-bold text-quizzo-yellow ring-1 ring-white/15 hover:bg-white/15">
+          🔁 Wiederholen <span className="whitespace-nowrap text-lg font-semibold text-white/80">({uebungen} {uebungen === 1 ? 'Frage' : 'Fragen'})</span>
+        </Link>
+      )}
 
       <p className="flex items-center gap-2 text-sm text-white/60" role="status">
         <span

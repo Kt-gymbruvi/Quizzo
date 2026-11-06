@@ -39,12 +39,14 @@ Außerdem in Etappe 4: Punkte pro Frage (keine/normal/doppelt), Quiz importieren
 - Selbstlernen
 - Hausaufgaben
 - Prüfung
-- Turnier
-- Wiederholung
+- ✅ Turnier – Etappe 7, gebaut, noch nicht veröffentlicht: nach dem Endstand „Runde 2 mit anderem Quiz“,
+  dieselben Mitspielenden und Teams, Punkte laufen weiter, Antworten der Vorrunde werden gelöscht
+- ✅ Wiederholung – Etappe 7, gebaut, noch nicht veröffentlicht: falsch beantwortete Fragen merkt sich nur das
+  Handy des Schülers (max. 50, 30 Tage), Übungsseite `#/wiederholen` ohne Zeitdruck, richtig geübte verschwinden
 
 ### Vor den Spielmodi zu klären (Datenschutz)
 Die aktuellen Regeln in `CLAUDE.md` sagen: keine Klarnamen, Spieldaten werden nach Spielende gelöscht.
 - **Selbstlernen / Hausaufgaben** laufen über Tage – Antworten müssen bis zur Abgabefrist gespeichert bleiben (danach löschen).
 - **Prüfung** braucht eine Zuordnung zu einzelnen Schülern – widerspricht „keine Klarnamen“ (Idee: Pseudonym-Codes, deren Zuordnung nur die Lehrkraft offline kennt).
-- **Turnier** fasst mehrere Spiele zusammen – Punkte müssen spielübergreifend gespeichert werden.
-- **Wiederholung** braucht frühere Fehler – Idee: nur auf dem Gerät des Schülers speichern.
+- ~~Turnier~~ und ~~Wiederholung~~: gelöst ohne zusätzliche Speicherung auf dem Server (siehe oben).
+- Vorschläge für Selbstlernen, Hausaufgaben und Prüfung liegen der Lehrkraft vor (noch nicht entschieden).

@@ -35,6 +35,7 @@ Quizzo ist eine Live-Quiz-Web-App für den Schulunterricht (eigener Name, eigene
 - Keine Klarnamen, keine E-Mail-Adressen von Schülern erfassen oder speichern.
 - Spieldaten (Spitznamen, Antworten, Punkte) werden nach Spielende gelöscht.
 - Dauerhaft gespeichert werden nur die Quizze der Lehrkraft.
+- Wiederholung: falsch beantwortete Fragen (Text, Antwortmöglichkeiten, Lösung – kein Spitzname) nur im localStorage des Schülergeräts, max. 50, höchstens 30 Tage; nie auf dem Server.
 
 ## Sicherheit
 - Im Code steht nur der öffentliche Supabase-Schlüssel (publishable / anon).

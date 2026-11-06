@@ -16,6 +16,8 @@ import {
 } from '../lib/spiel.ts'
 import { fehlerText } from '../lib/supabase.ts'
 import { team, teamName } from '../lib/teams.ts'
+import { ladeUebungen, merkeErgebnis } from '../lib/wiederholung.ts'
+import { Link } from 'react-router-dom'
 
 // Schüleransicht: fürs Handy optimiert. Kein Konto, nur PIN und Spitzname.
 export default function Mitspielen() {
@@ -145,6 +147,16 @@ function SchuelerSpiel({ teilnahme, verlassen }: { teilnahme: Teilnahme; verlass
   useRegelmaessig(laden, 2000, z !== null)
   const sekunden = useCountdown(z?.restzeit_ms, `${z?.status}-${z?.frage_nr}`)
 
+  // Wiederholung: nach dem Auflösen falsch beantwortete Fragen auf diesem Gerät merken (einmal pro Frage)
+  const gemerkt = useRef<string | null>(null)
+  useEffect(() => {
+    if (z?.status !== 'auswertung' || !z.frage) return
+    const marke = `${z.runde ?? 1}:${z.frage_nr}`
+    if (gemerkt.current === marke) return
+    gemerkt.current = marke
+    merkeErgebnis(z.frage, z.loesung, z.meine_antwort?.anteil)
+  }, [z])
+
   // Fehlermeldung einer alten Frage nicht stehen lassen
   const letzteFrage = useRef<number | null>(null)
   useEffect(() => {
@@ -211,7 +223,16 @@ function SchuelerSpiel({ teilnahme, verlassen }: { teilnahme: Teilnahme; verlass
   } else if (z.status === 'lobby') {
     inhalt = (
       <Mitte>
-        <p className="text-4xl font-black">Du bist dabei!</p>
+        {(z.runde ?? 1) > 1 ? (
+          <>
+            <p className="text-4xl font-black">Runde {z.runde}</p>
+            <p className="text-2xl font-bold">
+              Bisher: {z.punkte} Punkte · Platz {z.platz} von {z.anzahl_spieler}
+            </p>
+          </>
+        ) : (
+          <p className="text-4xl font-black">Du bist dabei!</p>
+        )}
         {team(z.team) && (
           <p className={`w-full rounded-3xl px-6 py-6 text-4xl font-black ${team(z.team)!.farbe}`}>
             <span className="block text-xl font-semibold text-white/85">Du spielst im</span>
@@ -289,6 +310,7 @@ function Ergebnis({ z }: { z: SchuelerZustand }) {
           Du selbst: {z.punkte} Punkte (Platz {z.platz} von {z.anzahl_spieler})
         </p>
         <p className="text-xl text-white/80">Danke fürs Mitspielen!</p>
+        <WiederholenLink />
       </>
     )
   }
@@ -302,6 +324,18 @@ function Ergebnis({ z }: { z: SchuelerZustand }) {
         von {z.anzahl_spieler} · {z.punkte} Punkte
       </p>
       <p className="text-xl text-white/80">Danke fürs Mitspielen!</p>
+        <WiederholenLink />
     </>
+  )
+}
+
+/** Hinweis auf die Wiederholung, wenn auf diesem Gerät Fragen zum Üben gemerkt sind */
+function WiederholenLink() {
+  const [anzahl] = useState(() => ladeUebungen().length)
+  if (!anzahl) return null
+  return (
+    <Link to="/wiederholen" className="rounded-2xl bg-white/15 px-5 py-3 text-xl font-bold text-quizzo-yellow underline-offset-4 hover:underline">
+      🔁 {anzahl} {anzahl === 1 ? 'Frage' : 'Fragen'} zum Üben gemerkt
+    </Link>
   )
 }

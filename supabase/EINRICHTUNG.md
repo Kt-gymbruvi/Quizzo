@@ -67,6 +67,11 @@ Inhalt von [`migrations/005_spielmodi.sql`](migrations/005_spielmodi.sql) im **S
 Danach kann beim Spielstart „Klassisch“ oder „Team“ gewählt werden. Die alte App-Version funktioniert weiter
 (sie startet einfach klassische Spiele).
 
+## 10. Turnier (Etappe 7)
+Inhalt von [`migrations/006_turnier.sql`](migrations/006_turnier.sql) im **SQL Editor** ausführen.
+Danach erscheint im Endstand der Knopf „Turnier: Runde 2 mit anderem Quiz“. Die alte App-Version funktioniert weiter.
+(Die Wiederholung für Schüler braucht keine Datenbank-Änderung – sie läuft nur auf dem Handy.)
+
 ## Weitere Lehrkräfte
 - **Am einfachsten:** wie in Schritt 5 ein Konto mit Startpasswort anlegen. Die Lehrkraft ändert es nach der ersten Anmeldung über „Passwort ändern“.
 - **Per E-Mail-Einladung** (Users → Add user → Send invitation): Der eingebaute E-Mail-Versand von Supabase schickt nur an Mitglieder deines Supabase-Teams und nur wenige Mails pro Stunde. Für Einladungen an Kolleginnen und Kollegen muss vorher ein eigener SMTP-Server eingetragen werden (Authentication → Emails → SMTP Settings). Das gilt genauso für „Passwort vergessen?“.

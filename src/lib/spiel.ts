@@ -33,6 +33,8 @@ export type LehrkraftZustand = {
   id: string
   pin: string
   modus: Spielmodus
+  /** Turnier: Rundennummer (ab 1) */
+  runde?: number
   anzahl_teams: number | null
   /** Teamwertung (nur im Teamspiel), beste zuerst */
   teams: TeamWertung | null
@@ -58,6 +60,7 @@ export type SchuelerZustand = {
   platz: number
   anzahl_spieler: number
   modus: Spielmodus
+  runde?: number
   team: number | null
   teams: TeamWertung | null
   frage: SchuelerFrage | null
@@ -78,6 +81,8 @@ async function aufruf<T>(funktion: string, args: Record<string, unknown>): Promi
 // --- Lehrkraft ---
 export const erstelleSpiel = (quizId: string, modus: Spielmodus = 'klassisch', teams: number | null = null) =>
   aufruf<{ id: string; pin: string }>('spiel_erstellen', { p_quiz_id: quizId, p_modus: modus, p_teams: modus === 'team' ? teams : null })
+/** Turnier: nach dem Endstand mit einem anderen Quiz weiterspielen (Punkte bleiben) */
+export const naechsteRunde = (spielId: string, quizId: string) => aufruf<void>('spiel_naechste_runde', { p_spiel: spielId, p_quiz_id: quizId })
 /** Teamspiel, Lobby: Spieler ins nächste Team setzen */
 export const wechsleTeam = (spielerId: string) => aufruf<void>('spieler_team_wechseln', { p_spieler: spielerId })
 export const steuereSpiel = (spielId: string, aktion: 'weiter' | 'aufloesen') =>

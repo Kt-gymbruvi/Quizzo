@@ -507,6 +507,63 @@ describe('Datenbank', () => {
     })
   })
 
+  describe('Turnier (mehrere Runden)', () => {
+    type L = { status: string; runde: number; quiz_titel: string; frage_nr: number; spieler: { spitzname: string; punkte: number }[] }
+    let spiel: { id: string; pin: string }
+    let fuchs: Beitritt
+    let quiz2: string
+    const zustandL = () => rpc<L>(db, A, 'spiel_zustand_lehrkraft', [spiel.id])
+    const bisZumEnde = async () => {
+      for (let i = 0; i < 20 && (await zustandL()).status !== 'ende'; i++) {
+        await rpc(db, A, 'spiel_steuern', [spiel.id, 'aufloesen'])
+        await rpc(db, A, 'spiel_steuern', [spiel.id, 'weiter'])
+      }
+    }
+
+    it('vor dem Endstand gibt es keine nächste Runde', async () => {
+      quiz2 = await rpc<string>(db, A, 'quiz_speichern', [null, 'Runde zwei', json([FRAGEN[1]])])
+      spiel = await rpc(db, A, 'spiel_erstellen', [quizId])
+      fuchs = await rpc<Beitritt>(db, ANONYM, 'spiel_beitreten', [spiel.pin, 'Turnierfuchs'])
+      expect((await zustandL()).runde).toBe(1)
+      await expect(rpc(db, A, 'spiel_naechste_runde', [spiel.id, quiz2])).rejects.toThrow('erst nach dem Endstand')
+    })
+
+    it('nach dem Endstand: neues Quiz, Punkte bleiben, alte Antworten werden gelöscht', async () => {
+      await rpc(db, A, 'spiel_steuern', [spiel.id, 'weiter'])
+      await rpc(db, ANONYM, 'antwort_abgeben', [fuchs.spieler_id, fuchs.token, 0, json([1])])
+      await bisZumEnde()
+      const ende = await zustandL()
+      expect(ende.status).toBe('ende')
+      const punkte = ende.spieler[0].punkte
+      expect(punkte).toBeGreaterThan(0)
+
+      await rpc(db, A, 'spiel_naechste_runde', [spiel.id, quiz2])
+      const z = await zustandL()
+      expect(z).toMatchObject({ status: 'lobby', runde: 2, quiz_titel: 'Runde zwei', frage_nr: -1 })
+      expect(z.spieler).toEqual([expect.objectContaining({ spitzname: 'Turnierfuchs', punkte })])
+      expect(await als(db, A, 'select count(*)::int as n from public.antworten where spiel_id = $1', [spiel.id])).toEqual([{ n: 0 }])
+
+      const s = await rpc<SchuelerZustand & { runde: number }>(db, ANONYM, 'spiel_zustand_schueler', [fuchs.spieler_id, fuchs.token])
+      expect(s).toMatchObject({ status: 'lobby', runde: 2, punkte })
+    })
+
+    it('in Runde 2 kann wieder Frage 1 beantwortet werden und die Punkte addieren sich', async () => {
+      const vorher = (await zustandL()).spieler[0].punkte
+      await rpc(db, A, 'spiel_steuern', [spiel.id, 'weiter'])
+      await rpc(db, ANONYM, 'antwort_abgeben', [fuchs.spieler_id, fuchs.token, 0, json(true)])
+      expect((await zustandL()).spieler[0].punkte).toBeGreaterThan(vorher)
+    })
+
+    it('nur mit eigenen Quizzen und nur im eigenen Spiel', async () => {
+      await bisZumEnde()
+      expect((await zustandL()).status).toBe('ende')
+      const fremdesQuiz = await rpc<string>(db, B, 'quiz_speichern', [null, 'Von B', json(FRAGEN)])
+      await expect(rpc(db, A, 'spiel_naechste_runde', [spiel.id, fremdesQuiz])).rejects.toThrow('Quiz nicht gefunden')
+      await expect(rpc(db, B, 'spiel_naechste_runde', [spiel.id, fremdesQuiz])).rejects.toThrow('Spiel nicht gefunden')
+      await expect(rpc(db, ANONYM, 'spiel_naechste_runde', [spiel.id, quiz2])).rejects.toThrow(/permission denied/)
+    })
+  })
+
   describe('Schüler sehen bei keinem Fragetyp die Lösung vorab', () => {
     const typen: F[] = [
       { typ: 'auswahl', text: 'x', inhalt: { antworten: ['a', 'b', 'c'], richtig: [0, 2] } },

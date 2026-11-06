@@ -237,7 +237,7 @@ function Regler({ min, max, schritt, einheit, senden }: { min: number; max: numb
 }
 
 /** Lösung als lesbarer Text für die Ergebnis-Anzeige auf dem Handy */
-function loesungText(frage: SchuelerFrage, loesung: unknown): ReactNode {
+export function loesungText(frage: SchuelerFrage, loesung: unknown): ReactNode {
   if (loesung == null) return null
   switch (frage.typ) {
     case 'auswahl':
