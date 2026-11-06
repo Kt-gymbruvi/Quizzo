@@ -8,7 +8,7 @@ Stand: November 2026. ✅ = fertig, 🔨 = in Arbeit, ⏳ = geplant
 - ✅ Etappe 3: Live-Spiel (PIN, Lobby, Countdown, Auswertung, Endstand, Daten löschen)
 - ✅ Etappe 4: neun Fragetypen, Import/Export, Wieder-Einsteigen nach „Zurück“, Handy-Ansicht ohne Scrollen
 
-## Frageneditor (Etappe 4 ✅ veröffentlicht · Etappe 5 Medien ✅ gebaut, noch nicht veröffentlicht)
+## Frageneditor (Etappe 4 ✅ veröffentlicht · Etappe 5 Medien ✅ veröffentlicht)
 | Nr. | Fragetyp | Interner Name | Punkte | Etappe |
 |---|---|---|---|---|
 | 1 | Multiple Choice (eine oder mehrere richtig, 2–6 Antworten) | `auswahl` | ja | 4 |
