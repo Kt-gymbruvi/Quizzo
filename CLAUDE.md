@@ -16,6 +16,11 @@ Quizzo ist eine Live-Quiz-Web-App für den Schulunterricht (eigener Name, eigene
 - Routing per HashRouter (URLs wie `…/Quizzo/#/mitspielen`), damit GitHub Pages ohne Weiterleitungen funktioniert.
 - Supabase-URL und publishable-Schlüssel stehen in `.env.production` (eingecheckt) bzw. `.env.local` (lokal); Vorlage: `.env.example`.
 
+## Lehrkraft-Konten und Datenbank
+- Nur eingeladene Lehrkräfte (Selbst-Registrierung in Supabase abgeschaltet), Anmeldung mit E-Mail und Passwort.
+- Datenbank-Änderungen als nummerierte SQL-Dateien in `supabase/migrations/`; die Lehrkraft führt sie im SQL Editor aus (Anleitung: `supabase/EINRICHTUNG.md`).
+- In Tests wird Supabase durch eine Attrappe ersetzt (`src/test/fakeSupabase.ts`), Tests sprechen nie mit dem echten Server.
+
 ## Datenschutz
 - Schüler brauchen kein Konto, nur PIN und Spitzname.
 - Keine Klarnamen, keine E-Mail-Adressen von Schülern erfassen oder speichern.

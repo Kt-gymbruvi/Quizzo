@@ -1,4 +1,5 @@
-import { istGeheimerSchluessel } from '../lib/supabase.ts'
+import { istGeheimerSchluessel } from '../lib/schluessel.ts'
+import { fehlerText } from '../lib/supabase.ts'
 
 function jwt(payload: object) {
   const b64 = (o: object) => btoa(JSON.stringify(o)).replace(/=+$/, '')
@@ -15,5 +16,14 @@ describe('Schlüssel-Prüfung', () => {
   it('akzeptiert publishable- und anon-Schlüssel', () => {
     expect(istGeheimerSchluessel('sb_publishable_abc123')).toBe(false)
     expect(istGeheimerSchluessel(jwt({ role: 'anon' }))).toBe(false)
+  })
+})
+
+describe('Fehlertexte', () => {
+  it('übersetzt falsche Anmeldedaten', () => {
+    expect(fehlerText({ message: 'Invalid login credentials' })).toBe('E-Mail-Adresse oder Passwort ist falsch.')
+  })
+  it('meldet fehlende Datenbanktabellen verständlich', () => {
+    expect(fehlerText(new Error('relation "public.quizze" does not exist'))).toBe('Die Datenbank ist noch nicht eingerichtet.')
   })
 })

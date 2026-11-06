@@ -26,10 +26,10 @@ describe('Startseite', () => {
     ).toBeInTheDocument()
   })
 
-  it('Knopf Quiz leiten führt zur Lehrkraft-Seite', async () => {
+  it('Knopf Quiz leiten führt zur Anmeldung für Lehrkräfte', async () => {
     renderApp()
     await userEvent.click(screen.getByRole('link', { name: 'Quiz leiten' }))
-    expect(screen.getByRole('heading', { name: 'Quiz leiten' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Anmelden für Lehrkräfte' })).toBeInTheDocument()
   })
 
   it('Knopf Mitspielen führt zur Schüler-Seite', async () => {
