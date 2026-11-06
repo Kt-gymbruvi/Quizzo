@@ -356,6 +356,86 @@ describe('Datenbank', () => {
     })
   })
 
+  describe('Medien (Bild, Audio, Video)', () => {
+    const ORDNER_A = LEHRKRAFT_A
+    const pfadA = `${ORDNER_A}/11111111-2222-4333-8444-555555555555.webp`
+    const url = 'https://beispiel.supabase.co/storage/v1/object/public/quizzo-medien/' + pfadA
+    const mit = (medium: unknown): F & { medium: unknown } => ({ ...FRAGEN[0], medium })
+
+    it('speichert ein Medium zur Frage und zeigt es der Lehrkraft im Spiel', async () => {
+      const medium = { art: 'bild', url, pfad: pfadA, beschreibung: 'Karte von Frankreich' }
+      const id = await rpc<string>(db, A, 'quiz_speichern', [null, 'Mit Bild', json([mit(medium)])])
+      expect(await als(db, A, 'select medium from public.fragen where quiz_id = $1', [id])).toEqual([{ medium }])
+      const sp = await rpc<{ id: string; pin: string }>(db, A, 'spiel_erstellen', [id])
+      const b = await rpc<Beitritt>(db, ANONYM, 'spiel_beitreten', [sp.pin, 'Bildgucker'])
+      await rpc(db, A, 'spiel_steuern', [sp.id, 'weiter'])
+      const l = await rpc<{ frage: { medium: unknown } }>(db, A, 'spiel_zustand_lehrkraft', [sp.id])
+      expect(l.frage.medium).toEqual(medium)
+      // Schüler bekommen das Medium nicht (nur Beamer)
+      const z = await rpc<SchuelerZustand>(db, ANONYM, 'spiel_zustand_schueler', [b.spieler_id, b.token])
+      expect(JSON.stringify(z)).not.toContain('medium')
+    })
+
+    it('Fragen ohne Medium bleiben gültig', async () => {
+      const id = await rpc<string>(db, A, 'quiz_speichern', [null, 'Ohne', json([mit(null)])])
+      expect(await als(db, A, 'select medium from public.fragen where quiz_id = $1', [id])).toEqual([{ medium: null }])
+    })
+
+    it.each([
+      ['unbekannte Art', { art: 'pdf', url }],
+      ['keine https-Adresse', { art: 'bild', url: 'http://unsicher.example/bild.png' }],
+      ['Adresse fehlt', { art: 'audio' }],
+      ['Skript statt Adresse', { art: 'bild', url: 'javascript:alert(1)' }],
+      ['falscher Speicherpfad', { art: 'bild', url, pfad: '../fremd/datei.png' }],
+      ['YouTube-ID ungültig', { art: 'youtube', id: 'abc' }],
+      ['Ende vor Start', { art: 'youtube', id: 'dQw4w9WgXcQ', start: 30, ende: 10 }],
+      ['negativer Start', { art: 'video', url, start: -5 }],
+      ['zu lange Beschreibung', { art: 'bild', url, beschreibung: 'x'.repeat(301) }],
+      ['kein Objekt', ['bild', url]],
+    ])('lehnt ungültige Medien ab: %s', async (_, medium) => {
+      await expect(rpc(db, A, 'quiz_speichern', [null, 'Kaputt', json([mit(medium)])])).rejects.toThrow(/fragen_medium_check/)
+    })
+
+    it('akzeptiert YouTube mit Ausschnitt und Audio mit Startzeit', async () => {
+      const fragen = [mit({ art: 'youtube', id: 'dQw4w9WgXcQ', start: 12, ende: 40 }), mit({ art: 'audio', url, start: 3 })]
+      await expect(rpc(db, A, 'quiz_speichern', [null, 'Medien ok', json(fragen)])).resolves.toBeTruthy()
+    })
+
+    const hochladen = (wer: typeof A, name: string) =>
+      als(db, wer, `insert into storage.objects (bucket_id, name) values ('quizzo-medien', $1) returning name`, [name])
+
+    it('der Speicher-Bucket ist angelegt: öffentlich lesbar, höchstens 50 MB, nur Medienformate', async () => {
+      const [b] = await als<{ public: boolean; file_size_limit: number; allowed_mime_types: string[] }>(
+        db, ANONYM, `select public, file_size_limit, allowed_mime_types from storage.buckets where id = 'quizzo-medien'`)
+      expect(b.public).toBe(true)
+      expect(Number(b.file_size_limit)).toBe(50 * 1024 * 1024)
+      expect(b.allowed_mime_types).toContain('image/webp')
+      expect(b.allowed_mime_types.some((t) => /pdf|html|javascript|svg/.test(t))).toBe(false)
+    })
+
+    it('Lehrkräfte laden nur in ihren eigenen Ordner hoch', async () => {
+      await expect(hochladen(A, pfadA)).resolves.toEqual([{ name: pfadA }])
+      await expect(hochladen(A, `${LEHRKRAFT_B}/fremd.webp`)).rejects.toThrow(/row-level security/)
+      await expect(hochladen(A, 'ohne-ordner.webp')).rejects.toThrow(/row-level security/)
+    })
+
+    it('ohne Anmeldung: kein Hochladen, keine Dateiliste', async () => {
+      await expect(hochladen(ANONYM, `${LEHRKRAFT_A}/anonym.webp`)).rejects.toThrow(/row-level security/)
+      expect(await als(db, ANONYM, 'select name from storage.objects')).toEqual([])
+    })
+
+    it('Lehrkraft B sieht und löscht keine Dateien von A', async () => {
+      expect(await als(db, B, 'select name from storage.objects')).toEqual([])
+      await als(db, B, 'delete from storage.objects where name = $1', [pfadA])
+      expect(await als(db, A, 'select name from storage.objects')).toEqual([{ name: pfadA }])
+    })
+
+    it('Lehrkraft A kann ihre eigenen Dateien löschen', async () => {
+      await als(db, A, 'delete from storage.objects where name = $1', [pfadA])
+      expect(await als(db, A, 'select name from storage.objects')).toEqual([])
+    })
+  })
+
   describe('Schüler sehen bei keinem Fragetyp die Lösung vorab', () => {
     const typen: F[] = [
       { typ: 'auswahl', text: 'x', inhalt: { antworten: ['a', 'b', 'c'], richtig: [0, 2] } },

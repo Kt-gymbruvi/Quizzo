@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Knopf, LehrkraftKopf, Meldung, ZurueckLink } from '../../components.tsx'
 import { FRAGETYPEN, TYP_REIHENFOLGE, ZEITLIMITS, neueFrage, pruefeQuiz, wechsleTyp, type Frage, type FrageTyp, type Punkte } from '../../lib/fragetypen.ts'
 import { ladeQuiz, speichereQuiz } from '../../lib/quizze.ts'
 import { fehlerText } from '../../lib/supabase.ts'
 import { FrageFelder } from './editor/FrageFelder.tsx'
+import { MedienFeld } from './editor/MedienFeld.tsx'
+import { pfadeIn, raeumeMedienAuf } from '../../lib/medien.ts'
 
 const auswahlStil = 'rounded-lg bg-white px-3 py-2 text-lg font-semibold text-quizzo-navy'
 
@@ -19,6 +21,8 @@ export default function QuizEditor() {
   const [fehler, setFehler] = useState<string[]>([])
   const [gespeichert, setGespeichert] = useState(false)
   const [speichert, setSpeichert] = useState(false)
+  // alle Mediendateien, die in diesem Editor vorkamen – nach dem Speichern werden unbenutzte gelöscht
+  const gesehenePfade = useRef(new Set<string>())
 
   useEffect(() => {
     if (istNeu || !id) return
@@ -26,6 +30,7 @@ export default function QuizEditor() {
       .then((q) => {
         setTitel(q.titel)
         setFragen(q.fragen.length ? q.fragen : [neueFrage()])
+        pfadeIn(q.fragen).forEach((p) => gesehenePfade.current.add(p))
       })
       .catch((err) => setFehler([fehlerText(err)]))
       .finally(() => setLaedt(false))
@@ -67,6 +72,7 @@ export default function QuizEditor() {
     try {
       const neueId = await speichereQuiz(istNeu ? null : id!, titel, fragen)
       setGespeichert(true)
+      void raeumeMedienAuf(gesehenePfade.current)
       if (istNeu) navigate(`/leiten/quiz/${neueId}`, { replace: true })
     } catch (err) {
       setFehler([fehlerText(err)])
@@ -187,6 +193,8 @@ export default function QuizEditor() {
                 aria-label={`Fragetext ${fi + 1}`}
                 className="resize-y rounded-xl bg-white px-4 py-3 text-2xl font-semibold text-quizzo-navy placeholder:font-normal placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-quizzo-yellow/60"
               />
+
+              <MedienFeld medium={f.medium} nr={fi + 1} setze={(medium) => aendere(fi, { ...f, medium })} hochgeladen={(p) => gesehenePfade.current.add(p)} />
 
               <FrageFelder frage={f} nr={fi + 1} setzeInhalt={(inhalt) => aendere(fi, { ...f, inhalt } as Frage)} />
             </li>

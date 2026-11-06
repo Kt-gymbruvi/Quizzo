@@ -1,5 +1,6 @@
 import { db } from './supabase.ts'
 import { bereinigeFrage, type Frage } from './fragetypen.ts'
+import { pfadeIn, raeumeMedienAuf } from './medien.ts'
 
 export type QuizUebersicht = {
   id: string
@@ -25,14 +26,16 @@ export async function ladeQuizze(): Promise<QuizUebersicht[]> {
 export async function ladeQuiz(id: string): Promise<{ titel: string; fragen: Frage[] }> {
   const { data, error } = await db()
     .from('quizze')
-    .select('titel, fragen(position, typ, text, inhalt, zeitlimit, punkte)')
+    .select('titel, fragen(position, typ, text, inhalt, zeitlimit, punkte, medium)')
     .eq('id', id)
     .order('position', { referencedTable: 'fragen' })
     .single()
   if (error) throw error
   return {
     titel: data.titel as string,
-    fragen: (data.fragen as (Frage & { position: number })[]).map(({ typ, text, inhalt, zeitlimit, punkte }) => ({ typ, text, inhalt, zeitlimit, punkte }) as Frage),
+    fragen: (data.fragen as (Frage & { position: number })[]).map(
+      ({ typ, text, inhalt, zeitlimit, punkte, medium }) => ({ typ, text, inhalt, zeitlimit, punkte, ...(medium ? { medium } : {}) }) as Frage,
+    ),
   }
 }
 
@@ -47,7 +50,11 @@ export async function speichereQuiz(id: string | null, titel: string, fragen: Fr
   return data as string
 }
 
+/** Löscht das Quiz samt Fragen und danach die nicht mehr verwendeten Mediendateien. */
 export async function loescheQuiz(id: string): Promise<void> {
+  const { data } = await db().from('fragen').select('medium').eq('quiz_id', id)
+  const pfade = pfadeIn((data ?? []) as { medium: Frage['medium'] }[])
   const { error } = await db().from('quizze').delete().eq('id', id)
   if (error) throw error
+  if (pfade.length) await raeumeMedienAuf(pfade)
 }

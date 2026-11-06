@@ -19,6 +19,7 @@ Gemeinsame Felder jeder Frage:
 | `text` | Fragetext (bei Folien: Überschrift), max. 500 Zeichen | – (Pflicht) |
 | `zeitlimit` | Sekunden, 5–240 | je nach Typ |
 | `punkte` | `0` = keine, `1` = normal, `2` = doppelt (nur bei Typen mit Wertung) | `1` |
+| `medium` | Bild, Ton oder Video zur Frage (nur am Beamer), siehe unten | keins |
 
 ## Felder je Fragetyp
 
@@ -37,5 +38,20 @@ Gemeinsame Felder jeder Frage:
 
 Längen: Antworten max. 120 Zeichen, Freitext-Lösungen max. 40, Sortier-Elemente max. 80, Zuordnungs-Begriffe max. 60.
 Beim Import wird jede Frage geprüft; fehlerhafte Dateien werden mit einer Liste der Probleme abgelehnt.
+
+## Medien (`medium`)
+
+Jede Frage – auch eine Folie – kann ein Medium haben. Es erscheint nur am Beamer, nicht auf den Handys.
+
+| Art | Felder | Beispiel |
+|---|---|---|
+| `bild` | `url` (https), optional `beschreibung` (max. 300 Zeichen) | `{ "art": "bild", "url": "https://upload.wikimedia.org/…/karte.png", "beschreibung": "Karte" }` |
+| `audio` | `url` (https), optional `start`, `ende` (Sekunden) | `{ "art": "audio", "url": "https://…/ton.mp3", "start": 5 }` |
+| `video` | `url` (https), optional `start`, `ende` | `{ "art": "video", "url": "https://…/film.mp4" }` |
+| `youtube` | `id` oder `url` (YouTube-Link), optional `start`, `ende` | `{ "art": "youtube", "url": "https://youtu.be/…", "start": 15, "ende": 60 }` |
+
+Im Editor hochgeladene Dateien bekommen beim Export ihre Adresse im Quizzo-Speicher (und `pfad`). Exportierte Dateien
+funktionieren deshalb nur, solange das Original-Quiz mit diesen Medien existiert. Bilder aus dem Internet
+(z. B. Wikimedia Commons) bitte nur verwenden, wenn die Lizenz das erlaubt.
 
 Ein vollständiges Beispiel mit allen Fragetypen: [`beispiele/alle-fragetypen.quizzo.json`](../beispiele/alle-fragetypen.quizzo.json).

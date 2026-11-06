@@ -23,6 +23,7 @@ Quizzo ist eine Live-Quiz-Web-App für den Schulunterricht (eigener Name, eigene
 - SQL-Migrationen werden mit PGlite gegen einen Supabase-Nachbau getestet (`src/test/sql/`), inkl. RLS und Rechten von `anon`/`authenticated`.
 - Schüler haben keinen Tabellenzugriff; sie nutzen nur die Funktionen `spiel_beitreten`, `spiel_zustand_schueler`, `antwort_abgeben` (security definer, Spieler-Token). Punkte berechnet der Server.
 - Spieldaten werden beim Beenden gelöscht; Spiele älter als 6 Stunden räumt `spiele_aufraeumen()` automatisch weg.
+- Medien liegen im Storage-Bucket `quizzo-medien` (öffentlich lesbar, Schreiben nur im Ordner `<auth.uid()>/`); Fragen verweisen darauf über `fragen.medium`. Medien nur am Beamer, nie in `spiel_zustand_schueler`. Unbenutzte Dateien löscht `raeumeMedienAuf()` (src/lib/medien.ts).
 
 ## Fahrplan
 - Geplante Fragetypen und Spielmodi stehen in `FAHRPLAN.md` (dort nach jeder Etappe den Stand aktualisieren).

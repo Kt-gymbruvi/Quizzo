@@ -8,7 +8,7 @@ Stand: November 2026. ✅ = fertig, 🔨 = in Arbeit, ⏳ = geplant
 - ✅ Etappe 3: Live-Spiel (PIN, Lobby, Countdown, Auswertung, Endstand, Daten löschen)
 - ✅ Etappe 4: neun Fragetypen, Import/Export, Wieder-Einsteigen nach „Zurück“, Handy-Ansicht ohne Scrollen
 
-## Frageneditor (Etappe 4 ✅ veröffentlicht · Medien in Etappe 5 ⏳)
+## Frageneditor (Etappe 4 ✅ veröffentlicht · Etappe 5 Medien ✅ gebaut, noch nicht veröffentlicht)
 | Nr. | Fragetyp | Interner Name | Punkte | Etappe |
 |---|---|---|---|---|
 | 1 | Multiple Choice (eine oder mehrere richtig, 2–6 Antworten) | `auswahl` | ja | 4 |
@@ -20,7 +20,10 @@ Stand: November 2026. ✅ = fertig, 🔨 = in Arbeit, ⏳ = geplant
 | 7 | Offene Frage (längere Antwort) | `offen` | nein | 4 |
 | 8 | Schieberegler (Zahl schätzen, je näher desto mehr Punkte) | `schieberegler` | ja | 4 |
 | 9 | Präsentationsfolie (Info ohne Antwort) | `folie` | nein | 4 |
-| 10 | Audio und Video (sowie Bilder zu Fragen) | – | – | 5 |
+| 10 | Audio und Video (sowie Bilder zu Fragen) – nur am Beamer | Spalte `medium` | – | 5 |
+
+Etappe 5: Bild, Audio, Video hochladen (Supabase Storage, Bilder automatisch verkleinert) oder YouTube-Link (datensparsam über youtube-nocookie), jeweils mit optionalem Ausschnitt (von/bis). Unbenutzte Dateien werden automatisch gelöscht.
+Ideen für später: Medien auch auf den Handys anzeigen (Schalter pro Frage), Countdown erst nach dem Abspielen starten, Bilder als Antworten.
 
 Außerdem in Etappe 4: Punkte pro Frage (keine/normal/doppelt), Quiz importieren/exportieren (JSON, siehe `docs/QUIZ-DATEIFORMAT.md`), Quiz und einzelne Fragen kopieren.
 

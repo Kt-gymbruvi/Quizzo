@@ -17,7 +17,12 @@ export const fakeSupabase = {
   },
   from: fn(),
   rpc: fn(),
+  storage: { from: fn() },
 }
+
+/** Attrappe des Dateispeichers (Supabase Storage, Bucket "quizzo-medien") */
+export const fakeSpeicher = { upload: fn(), getPublicUrl: fn(), list: fn(), remove: fn() }
+export const SPEICHER_URL = 'https://test.supabase.co/storage/v1/object/public/quizzo-medien/'
 
 export function eingeloggteSession(email = 'lehrkraft@schule.test') {
   return { access_token: 'x', user: { id: 'u1', email } }
@@ -35,12 +40,17 @@ export function setzeFakeZurueck(session: unknown = null) {
   a.resetPasswordForEmail.mockReset().mockResolvedValue({ data: {}, error: null })
   fakeSupabase.rpc.mockReset().mockResolvedValue({ data: 'neue-id', error: null })
   fakeSupabase.from.mockReset().mockImplementation(() => abfrage({ data: [], error: null }))
+  fakeSupabase.storage.from.mockReset().mockReturnValue(fakeSpeicher)
+  fakeSpeicher.upload.mockReset().mockImplementation(async (pfad: string) => ({ data: { path: pfad }, error: null }))
+  fakeSpeicher.getPublicUrl.mockReset().mockImplementation((pfad: string) => ({ data: { publicUrl: SPEICHER_URL + pfad } }))
+  fakeSpeicher.list.mockReset().mockResolvedValue({ data: [], error: null })
+  fakeSpeicher.remove.mockReset().mockResolvedValue({ data: [], error: null })
 }
 
-/** Baut eine verkettbare Abfrage (select/eq/order/single/delete), die am Ende `ergebnis` liefert. */
+/** Baut eine verkettbare Abfrage (select/eq/not/order/single/delete), die am Ende `ergebnis` liefert. */
 export function abfrage(ergebnis: unknown) {
   const kette: any = {}
-  for (const m of ['select', 'eq', 'order', 'single', 'delete']) kette[m] = vi.fn(() => kette)
+  for (const m of ['select', 'eq', 'not', 'order', 'single', 'delete']) kette[m] = vi.fn(() => kette)
   kette.then = (ok: (v: unknown) => unknown, nok?: (e: unknown) => unknown) => Promise.resolve(ergebnis).then(ok, nok)
   return kette
 }

@@ -16,8 +16,15 @@ export type Inhalte = {
 export type FrageTyp = keyof Inhalte
 export type Punkte = 0 | 1 | 2
 
+/** Bild, Ton oder Video zur Frage (nur am Beamer). Format wie in der Datenbank (medium_gueltig, 004_medien.sql). */
+export type Medium =
+  | { art: 'bild'; url: string; pfad?: string; beschreibung?: string }
+  | { art: 'audio' | 'video'; url: string; pfad?: string; start?: number; ende?: number }
+  | { art: 'youtube'; id: string; start?: number; ende?: number }
+export type MedienArt = Medium['art']
+
 export type Frage = {
-  [T in FrageTyp]: { typ: T; text: string; zeitlimit: number; punkte: Punkte; inhalt: Inhalte[T] }
+  [T in FrageTyp]: { typ: T; text: string; zeitlimit: number; punkte: Punkte; inhalt: Inhalte[T]; medium?: Medium | null }
 }[FrageTyp]
 
 export const ZEITLIMITS = [5, 10, 20, 30, 45, 60, 90, 120, 180, 240] as const
@@ -67,6 +74,7 @@ export function wechsleTyp(f: Frage, typ: FrageTyp): Frage {
   if (f.typ === typ) return f
   const neu = neueFrage(typ)
   neu.text = f.text
+  if (f.medium) neu.medium = f.medium
   const alteTexte =
     f.typ === 'auswahl' || f.typ === 'umfrage' ? f.inhalt.antworten : f.typ === 'reihenfolge' ? f.inhalt.elemente : null
   if (alteTexte && (neu.typ === 'auswahl' || neu.typ === 'umfrage')) {
@@ -86,7 +94,8 @@ const eindeutig = (liste: string[]) => new Set(liste.map((s) => s.trim().toLower
 
 /** Entfernt leere Einträge und Leerzeichen; passt Indizes richtiger Antworten an. */
 export function bereinigeFrage(f: Frage): Frage {
-  const basis = { text: t(f.text), zeitlimit: f.zeitlimit, punkte: FRAGETYPEN[f.typ].bewertet ? f.punkte : 0 }
+  const medium = bereinigeMedium(f.medium)
+  const basis = { text: t(f.text), zeitlimit: f.zeitlimit, punkte: FRAGETYPEN[f.typ].bewertet ? f.punkte : 0, ...(medium ? { medium } : {}) }
   switch (f.typ) {
     case 'auswahl': {
       const antworten: string[] = []
@@ -121,12 +130,48 @@ export function bereinigeFrage(f: Frage): Frage {
   }
 }
 
+/** Leere Zeitangaben und Beschreibungen weglassen. */
+function bereinigeMedium(m: Medium | null | undefined): Medium | null {
+  if (!m) return null
+  const neu: Record<string, unknown> = { ...m }
+  for (const k of ['start', 'ende'] as const) {
+    const v = neu[k]
+    if (v === undefined || v === null || v === '' || !Number.isFinite(v as number)) delete neu[k]
+  }
+  if ('beschreibung' in neu) {
+    const b = t(neu.beschreibung as string)
+    if (b) neu.beschreibung = b
+    else delete neu.beschreibung
+  }
+  return neu as Medium
+}
+
+/** Prüft das Medium einer Frage (gleiche Regeln wie die Datenbank). */
+export function pruefeMedium(m: Medium | null | undefined): string[] {
+  if (!m) return []
+  const fehler: string[] = []
+  if (m.art === 'youtube') {
+    if (!/^[A-Za-z0-9_-]{11}$/.test(m.id)) fehler.push('Der YouTube-Link ist ungültig.')
+  } else if (!/^https:\/\/[^\s"<>]+$/.test(m.url) || m.url.length > 1000) {
+    fehler.push('Die Adresse des Mediums ist ungültig (sie muss mit https:// beginnen).')
+  }
+  if ('start' in m || 'ende' in m) {
+    const { start, ende } = m as { start?: number; ende?: number }
+    if (start !== undefined && (start < 0 || start > 36000)) fehler.push('Die Startzeit ist ungültig.')
+    if (ende !== undefined && (ende <= 0 || ende > 36000)) fehler.push('Die Endzeit ist ungültig.')
+    if (start !== undefined && ende !== undefined && ende <= start) fehler.push('Die Endzeit muss nach der Startzeit liegen.')
+  }
+  if (m.art === 'bild' && (m.beschreibung ?? '').length > 300) fehler.push('Die Bildbeschreibung ist zu lang (höchstens 300 Zeichen).')
+  return fehler
+}
+
 /** Prüft eine Frage (nach Bereinigung). Liefert verständliche Fehlermeldungen ohne Präfix. */
 export function pruefeFrage(roh: Frage): string[] {
   const f = bereinigeFrage(roh)
   const fehler: string[] = []
   if (!f.text) fehler.push(f.typ === 'folie' ? 'Die Überschrift fehlt.' : 'Der Fragetext fehlt.')
   else if (f.text.length > GRENZEN.text) fehler.push(`Der Text ist zu lang (höchstens ${GRENZEN.text} Zeichen).`)
+  fehler.push(...pruefeMedium(f.medium))
 
   switch (f.typ) {
     case 'auswahl':
@@ -201,7 +246,7 @@ export function exportiereQuiz(titel: string, fragen: Frage[]) {
     version: 1,
     titel,
     fragen: fragen.map((f) => {
-      const basis = { typ: f.typ, text: f.text, zeitlimit: f.zeitlimit, punkte: f.punkte }
+      const basis = { typ: f.typ, text: f.text, zeitlimit: f.zeitlimit, punkte: f.punkte, ...(f.medium ? { medium: f.medium } : {}) }
       // Bei Folien heißt der Folientext in der Datei "folientext" (sonst Konflikt mit der Überschrift "text")
       return f.typ === 'folie' ? { ...basis, folientext: f.inhalt.text } : { ...basis, ...f.inhalt }
     }),
@@ -213,6 +258,31 @@ const istObjekt = (x: unknown): x is Roh => typeof x === 'object' && x !== null 
 const texte = (x: unknown): string[] => (Array.isArray(x) ? x.map((e) => (typeof e === 'string' || typeof e === 'number' ? String(e) : '')) : [])
 const zahl = (x: unknown, ersatz: number) => (typeof x === 'number' && Number.isFinite(x) ? x : typeof x === 'string' && x.trim() !== '' && Number.isFinite(Number(x)) ? Number(x) : ersatz)
 
+/** YouTube-Video-ID aus einem Link (watch?v=, youtu.be/, shorts/, embed/) oder einer nackten ID. */
+export function youtubeId(text: string): string | null {
+  const s = text.trim()
+  if (/^[A-Za-z0-9_-]{11}$/.test(s)) return s
+  const m = s.match(/(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/)
+  return m ? m[1] : null
+}
+
+/** Medium aus einer Import-Datei: { art, url | id | link, start?, ende?, beschreibung? } */
+function importiereMedium(x: unknown): Medium | null {
+  if (!istObjekt(x)) return null
+  const zeit = (v: unknown) => (v === undefined || v === null || v === '' ? undefined : Math.round(zahl(v, NaN)))
+  const zeiten = { start: zeit(x.start), ende: zeit(x.ende) }
+  const art = x.art
+  if (art === 'youtube') {
+    const id = youtubeId(String(x.id ?? x.url ?? x.link ?? ''))
+    return { art: 'youtube', id: id ?? String(x.id ?? x.url ?? ''), ...zeiten }
+  }
+  if (art !== 'bild' && art !== 'audio' && art !== 'video') return null
+  const url = typeof x.url === 'string' ? x.url.trim() : ''
+  const pfad = typeof x.pfad === 'string' ? { pfad: x.pfad } : {}
+  if (art === 'bild') return { art, url, ...pfad, ...(typeof x.beschreibung === 'string' ? { beschreibung: x.beschreibung } : {}) }
+  return { art, url, ...pfad, ...zeiten }
+}
+
 /** Liest eine Frage aus einer Import-Datei (großzügig: fehlende Werte bekommen Standardwerte). */
 function importiereFrage(r: Roh): Frage {
   const typ = (typeof r.typ === 'string' && r.typ in FRAGETYPEN ? r.typ : 'auswahl') as FrageTyp
@@ -221,6 +291,8 @@ function importiereFrage(r: Roh): Frage {
   basis.zeitlimit = Math.min(240, Math.max(5, Math.round(zahl(r.zeitlimit, basis.zeitlimit))))
   const p = zahl(r.punkte, basis.punkte)
   basis.punkte = (FRAGETYPEN[typ].bewertet ? ([0, 1, 2].includes(p) ? p : 1) : 0) as Punkte
+  const medium = importiereMedium(r.medium)
+  if (medium) basis.medium = bereinigeMedium(medium)
 
   switch (basis.typ) {
     case 'auswahl': {

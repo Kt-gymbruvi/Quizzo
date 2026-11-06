@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import QRCode from 'qrcode'
 import { Knopf, Meldung } from '../../components.tsx'
 import { FRAGETYPEN } from '../../lib/fragetypen.ts'
-import { BeamerAuswertung, BeamerFrage } from '../../spiel/Beamer.tsx'
+import { BeamerAuswertung, BeamerFrage, BeamerMedium } from '../../spiel/Beamer.tsx'
 import {
   entferneSpieler,
   ladeLehrkraftZustand,
@@ -225,6 +225,7 @@ function FrageAnsicht({
 }) {
   if (!z.frage) return null
   const istFolie = z.frage.typ === 'folie'
+  const medium = z.frage.medium
   const letzte = z.frage_nr + 1 >= z.anzahl_fragen
   return (
     <div className="flex flex-1 flex-col gap-6">
@@ -255,12 +256,25 @@ function FrageAnsicht({
       />
       <h2
         className={`rounded-3xl bg-white px-8 text-center font-extrabold leading-tight text-quizzo-navy ${
-          istFolie ? 'py-12 text-6xl' : 'py-8 text-5xl'
+          medium ? 'py-5 text-4xl' : istFolie ? 'py-12 text-6xl' : 'py-8 text-5xl'
         }`}
       >
         {z.frage.text}
       </h2>
-      <BeamerFrage frage={z.frage} />
+      {/* key: Audio/Video bei jeder neuen Frage neu laden (und stoppen) */}
+      {medium?.art === 'audio' && <BeamerMedium key={z.frage_nr} medium={medium} />}
+      {medium && medium.art !== 'audio' ? (
+        <div className="grid min-h-0 flex-1 grid-cols-2 items-center gap-6">
+          <div className="flex h-full min-h-0 items-center justify-center">
+            <BeamerMedium key={z.frage_nr} medium={medium} />
+          </div>
+          <div className="flex h-full min-h-0 flex-col">
+            <BeamerFrage frage={z.frage} />
+          </div>
+        </div>
+      ) : (
+        <BeamerFrage frage={z.frage} />
+      )}
     </div>
   )
 }

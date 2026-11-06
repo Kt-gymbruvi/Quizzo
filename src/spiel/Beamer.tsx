@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { ANTWORT_STIL, FALSCH_STIL, WAHR_STIL } from '../lib/antwortStil.ts'
+import type { Medium } from '../lib/fragetypen.ts'
 import { normalisiere, type AbgegebeneAntwort, type LehrkraftFrage } from '../lib/spiel.ts'
 
 // Beamer-Ansicht (Lehrkraft, iPad quer): Frage und Auswertung je Fragetyp
@@ -22,6 +23,45 @@ function Hinweis({ children }: { children: ReactNode }) {
 }
 
 const raster = (n: number) => (n > 4 ? 'grid-cols-2 xl:grid-cols-3' : 'grid-cols-2')
+
+/** Abspielbereich als Media-Fragment (#t=start,ende) – wird von allen gängigen Browsern verstanden */
+const ausschnitt = (m: { start?: number; ende?: number }) =>
+  m.start || m.ende ? `#t=${m.start ?? 0}${m.ende ? ',' + m.ende : ''}` : ''
+
+/** Bild, Ton oder Video zur Frage. Wird nicht automatisch abgespielt – die Lehrkraft startet es. */
+export function BeamerMedium({ medium }: { medium: Medium }) {
+  switch (medium.art) {
+    case 'bild':
+      return <img src={medium.url} alt={medium.beschreibung ?? ''} className="h-full max-h-[60vh] w-full min-h-0 rounded-3xl bg-white/5 object-contain" />
+    case 'audio':
+      return (
+        <div className="flex items-center gap-4 rounded-3xl bg-white/10 px-6 py-4">
+          <span className="text-5xl" aria-hidden="true">
+            🔊
+          </span>
+          <audio src={medium.url + ausschnitt(medium)} controls preload="auto" className="h-14 flex-1" aria-label="Audio zur Frage" />
+        </div>
+      )
+    case 'video':
+      return <video src={medium.url + ausschnitt(medium)} controls preload="auto" playsInline className="h-full max-h-[60vh] w-full min-h-0 rounded-3xl bg-black" aria-label="Video zur Frage" />
+    case 'youtube': {
+      // youtube-nocookie: YouTube setzt erst beim Abspielen Cookies (nur auf dem Lehrkraft-Gerät)
+      const p = new URLSearchParams({ rel: '0', modestbranding: '1', playsinline: '1' })
+      if (medium.start) p.set('start', String(medium.start))
+      if (medium.ende) p.set('end', String(medium.ende))
+      return (
+        <iframe
+          src={`https://www.youtube-nocookie.com/embed/${medium.id}?${p}`}
+          title="Video zur Frage"
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+          allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
+          className="aspect-video max-h-[60vh] w-full rounded-3xl bg-black"
+        />
+      )
+    }
+  }
+}
 
 /** Anzeige während die Frage läuft */
 export function BeamerFrage({ frage }: { frage: LehrkraftFrage }) {
