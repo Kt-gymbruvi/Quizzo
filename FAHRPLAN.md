@@ -36,6 +36,11 @@ Ideen für später: Medien auch auf den Handys anzeigen (Schalter pro Frage), Co
 
 Außerdem in Etappe 4: Punkte pro Frage (keine/normal/doppelt), Quiz importieren/exportieren (JSON, siehe `docs/QUIZ-DATEIFORMAT.md`), Quiz und einzelne Fragen kopieren.
 
+## Startseite kt-gymbruvi.github.io
+- ✅ Startseite „Lernen mit Spaß“, Werkzeuge (Timer, Gruppen & Zufall, Herzfrequenz-Zonen), Impressum mit Verweis auf die Schule
+- ✅ Lernangebote: 40 übernommene Claude-Artefakte (Biologie 5–13, Sport), Baum Fach › Jahrgang › Thema, Liste mit Erklärung
+- 🔨 Etappe 10: Ordnung direkt auf der Seite ändern (`lernen/#bearbeiten`, SQL `009`) – fertig, noch nicht veröffentlicht
+
 ## Kleinigkeiten ⏳
 - ✅ Schieberegler: Jahreszahlen ohne Tausenderpunkt (1975 statt 1.975; Punkt erst ab 10.000)
 - „Passwort vergessen?“ braucht einen eigenen SMTP-Server in Supabase

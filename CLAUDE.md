@@ -28,6 +28,7 @@ Quizzo ist eine Live-Quiz-Web-App für den Schulunterricht (eigener Name, eigene
 - Spielmodi: `spiele.modus` ('klassisch' | 'team'), Teams 1–6 in `spieler.team`; Teamwertung (Durchschnitt) liefert `team_wertung()` (nur intern).
 - Aufgaben ohne Live-Spiel (`aufgaben.modus`: 'selbstlernen' | 'hausaufgabe' | 'pruefung', Migration 007): Fragen werden beim Erstellen kopiert; Schüler nutzen nur `aufgabe_oeffnen`, `aufgabe_beitreten`, `aufgabe_zustand`, `aufgabe_antworten`. Abgelaufenes löscht `aufgaben_aufraeumen()` (auch über `spiele_aufraeumen()`).
 - Zeitlimit bei Hausaufgabe/Prüfung (`aufgaben.mit_zeit`, Zeit pro Frage im Fragen-Schnappschuss): Fragen sind verdeckt, bis `aufgabe_frage_oeffnen` sie öffnet (Startzeit in `aufgabe_gestartet`); zu spät = 0 Punkte (`aufgabe_antworten.zu_spaet`).
+- Die Startseite kt-gymbruvi.github.io (eigenes Repository, Ordner `Kt-gymbruvi.github.io`) liest die Ordnung ihrer Lernangebote aus `lernangebote` (Migration 009): lesen darf jeder (ohne `besitzer_id`), ändern nur die Lehrkraft, der der Eintrag gehört.
 - Medien liegen im Storage-Bucket `quizzo-medien` (öffentlich lesbar, Schreiben nur im Ordner `<auth.uid()>/`); Fragen verweisen darauf über `fragen.medium`. Medien nur am Beamer, nie in `spiel_zustand_schueler`. Unbenutzte Dateien löscht `raeumeMedienAuf()` (src/lib/medien.ts).
 
 ## Fahrplan

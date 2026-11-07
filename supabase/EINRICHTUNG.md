@@ -85,6 +85,11 @@ Inhalt von [`migrations/008_ordner_zeitlimit.sql`](migrations/008_ordner_zeitlim
 Neu: Quizze lassen sich in Ordner legen; Hausaufgaben und Prüfungen können ein Zeitlimit pro Frage haben
 (die Zeit läuft auf dem Server, Neuladen setzt sie nicht zurück).
 
+## 13. Lernangebote auf der Webseite ordnen (Etappe 10)
+Inhalt von [`migrations/009_lernangebote.sql`](migrations/009_lernangebote.sql) im **SQL Editor** ausführen.
+Danach kann die Lehrkraft auf `kt-gymbruvi.github.io/lernen/#bearbeiten` die Lernangebote umsortieren, umbenennen
+und verstecken. Besucher können nur lesen. Ohne diese Tabelle zeigt die Seite einfach den Stand aus `angebote.js`.
+
 ## Weitere Lehrkräfte
 - **Am einfachsten:** wie in Schritt 5 ein Konto mit Startpasswort anlegen. Die Lehrkraft ändert es nach der ersten Anmeldung über „Passwort ändern“.
 - **Per E-Mail-Einladung** (Users → Add user → Send invitation): Der eingebaute E-Mail-Versand von Supabase schickt nur an Mitglieder deines Supabase-Teams und nur wenige Mails pro Stunde. Für Einladungen an Kolleginnen und Kollegen muss vorher ein eigener SMTP-Server eingetragen werden (Authentication → Emails → SMTP Settings). Das gilt genauso für „Passwort vergessen?“.

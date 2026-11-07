@@ -104,6 +104,52 @@ describe('Datenbank', () => {
     })
   })
 
+  describe('Lernangebote auf der Webseite (Migration 009)', () => {
+    const zeile = (ordner: string, extra: Record<string, unknown> = {}) => ({ ordner, titel: 'Titel', text: 'Erklärung', fach: 'bio', stufen: ['7'], ...extra })
+    const einfuegen = (wer: typeof A, z: ReturnType<typeof zeile>) =>
+      als(db, wer, 'insert into public.lernangebote (ordner, titel, text, fach, stufen, thema, sichtbar) values ($1, $2, $3, $4, $5, $6, coalesce($7, true))', [
+        z.ordner, z.titel, z.text, z.fach, z.stufen, (z as { thema?: string }).thema ?? null, (z as { sichtbar?: boolean }).sichtbar ?? null,
+      ])
+
+    it('Lehrkraft legt Einträge an; Besucher lesen (auch „versteckt“-Markierung), ändern aber nichts', async () => {
+      await einfuegen(A, zeile('herzzyklus'))
+      await einfuegen(A, zeile('geheim', { sichtbar: false }))
+      expect(await als(db, ANONYM, 'select ordner, sichtbar from public.lernangebote order by ordner')).toEqual([
+        { ordner: 'geheim', sichtbar: false },
+        { ordner: 'herzzyklus', sichtbar: true },
+      ])
+      // wem ein Eintrag gehört, sehen Besucher nicht
+      await expect(als(db, ANONYM, 'select besitzer_id from public.lernangebote')).rejects.toThrow(/permission denied/)
+      expect(await als(db, A, 'select ordner from public.lernangebote order by ordner')).toEqual([{ ordner: 'geheim' }, { ordner: 'herzzyklus' }])
+      await expect(als(db, ANONYM, "update public.lernangebote set titel = 'x'")).rejects.toThrow(/permission denied/)
+      await expect(als(db, ANONYM, 'delete from public.lernangebote')).rejects.toThrow(/permission denied/)
+      await expect(als(db, ANONYM, "insert into public.lernangebote (ordner, titel, fach) values ('neu', 'x', 'bio')")).rejects.toThrow(/permission denied/)
+    })
+
+    it('andere Lehrkräfte können fremde Einträge nicht ändern', async () => {
+      await als(db, B, "update public.lernangebote set titel = 'Gehackt' where ordner = 'herzzyklus'")
+      await als(db, B, "delete from public.lernangebote where ordner = 'herzzyklus'")
+      expect(await als(db, A, "select titel from public.lernangebote where ordner = 'herzzyklus'")).toEqual([{ titel: 'Titel' }])
+      // Eintrag auf fremden Namen anlegen geht nicht
+      await expect(
+        als(db, B, 'insert into public.lernangebote (ordner, titel, fach, besitzer_id) values ($1, $2, $3, $4)', ['fremd', 'x', 'bio', LEHRKRAFT_A]),
+      ).rejects.toThrow(/row-level security/)
+    })
+
+    it('Lehrkraft ändert Einordnung, Reihenfolge und Sichtbarkeit; ungültige Werte lehnt die Datenbank ab', async () => {
+      await als(db, A, "update public.lernangebote set fach = 'sport', stufen = '{sek2,10}', thema = 'evo', position = 30, sichtbar = false where ordner = 'herzzyklus'")
+      expect(await als(db, A, "select fach, stufen, thema, position, sichtbar from public.lernangebote where ordner = 'herzzyklus'")).toEqual([
+        { fach: 'sport', stufen: ['sek2', '10'], thema: 'evo', position: 30, sichtbar: false },
+      ])
+      expect(await als(db, ANONYM, "select sichtbar from public.lernangebote where ordner = 'herzzyklus'")).toEqual([{ sichtbar: false }])
+      await expect(einfuegen(A, zeile('Böser Ordner/../'))).rejects.toThrow(/check/)
+      await expect(einfuegen(A, zeile('lang', { text: 'x'.repeat(601) }))).rejects.toThrow(/check/)
+      await expect(einfuegen(A, zeile('stufe', { stufen: ['<script>'] }))).rejects.toThrow(/check/)
+      await als(db, A, 'delete from public.lernangebote')
+      expect(await als(db, A, 'select count(*)::int as n from public.lernangebote')).toEqual([{ n: 0 }])
+    })
+  })
+
   describe('Fragetypen: die Datenbank nimmt nur vollständige Fragen an', () => {
     const gueltig: F[] = [
       { typ: 'auswahl', text: 'Mehrere richtig', inhalt: { antworten: ['a', 'b', 'c', 'd', 'e', 'f'], richtig: [0, 5] } },
