@@ -89,6 +89,24 @@ describe('Datenbank', () => {
     })
   })
 
+  describe('Schwierigkeit pro Frage (Migration 010)', () => {
+    it('quiz_speichern übernimmt leicht/mittel/schwer, ohne Angabe bleibt leer; ungültige Werte abgelehnt', async () => {
+      const fragen = [
+        { ...FRAGEN[0], schwierigkeit: 1 },
+        { ...FRAGEN[1], schwierigkeit: 3 },
+        FRAGEN[3],
+      ]
+      const id = await rpc<string>(db, A, 'quiz_speichern', [null, 'Schwierigkeiten', json(fragen)])
+      expect(await als(db, A, 'select schwierigkeit from public.fragen where quiz_id = $1 order by position', [id])).toEqual([
+        { schwierigkeit: 1 },
+        { schwierigkeit: 3 },
+        { schwierigkeit: null },
+      ])
+      await expect(rpc(db, A, 'quiz_speichern', [id, 'Schwierigkeiten', json([{ ...FRAGEN[0], schwierigkeit: 4 }])])).rejects.toThrow(/check/)
+      await als(db, A, 'delete from public.quizze where id = $1', [id])
+    })
+  })
+
   describe('Quizze: Ordner und „zuletzt benutzt“ (Migration 008)', () => {
     it('Lehrkraft legt eigene Quizze in Ordner, fremde nicht', async () => {
       await als(db, A, 'update public.quizze set ordner = $1 where id = $2', ['Erdkunde 7b', quizId])
