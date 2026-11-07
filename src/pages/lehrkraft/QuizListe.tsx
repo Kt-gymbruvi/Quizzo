@@ -15,6 +15,8 @@ import {
 } from '../../lib/quizze.ts'
 import { erstelleSpiel, type Spielmodus } from '../../lib/spiel.ts'
 import { SpielStarten } from './SpielStarten.tsx'
+import { DuellEinrichten } from './DuellEinrichten.tsx'
+import { MAX_KATEGORIEN, MIN_KATEGORIEN, alsAdresse } from '../../lib/duell.ts'
 import { AufgabeErstellen } from './AufgabeErstellen.tsx'
 import { AufgabenUebersicht } from './AufgabenUebersicht.tsx'
 import { erstelleAufgabe, type Aufgabenmodus } from '../../lib/aufgaben.ts'
@@ -67,6 +69,9 @@ export default function QuizListe() {
   const [aufgabeLaeuft, setAufgabeLaeuft] = useState(false)
   const [aufgabenStand, setAufgabenStand] = useState(0)
   const [verschieben, setVerschieben] = useState<QuizUebersicht | null>(null)
+  // Klassen-Duell: abgehakte Quizze (null = nicht im Auswahlmodus), Reihenfolge = Kategorien
+  const [duellWahl, setDuellWahl] = useState<string[] | null>(null)
+  const [duellDialog, setDuellDialog] = useState(false)
   const [ordnerZiel, setOrdnerZiel] = useState<string | null>(null)
   const [ordner, setOrdner] = useState<OrdnerWahl>(() => gemerkt().ordner)
   // Neu angelegte, noch leere Ordner merkt sich nur dieses Gerät – bis ein Quiz darin liegt
@@ -318,7 +323,7 @@ export default function QuizListe() {
   }
 
   return (
-    <main className="flex min-h-dvh flex-col gap-6 px-6 py-5 lg:px-10">
+    <main className={`flex min-h-dvh flex-col gap-6 px-6 py-5 lg:px-10 ${duellWahl !== null ? 'pb-32' : ''}`}>
       <LehrkraftKopf />
 
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -332,6 +337,14 @@ export default function QuizListe() {
         </nav>
         {ansicht === 'quizze' && (
           <div className="flex flex-wrap gap-3">
+            <Knopf
+              art="rahmen"
+              onClick={() => setDuellWahl((w) => (w === null ? [] : null))}
+              aria-pressed={duellWahl !== null}
+              className={`!py-3 ${duellWahl !== null ? '!bg-quizzo-yellow !text-quizzo-navy' : ''}`}
+            >
+              🏆 Klassen-Duell
+            </Knopf>
             <Knopf art="rahmen" onClick={() => dateiWahl.current?.click()} className="!py-3">
               Importieren
             </Knopf>
@@ -347,6 +360,11 @@ export default function QuizListe() {
       </div>
 
       {hinweis && <Meldung art="erfolg">{hinweis}</Meldung>}
+      {duellWahl !== null && ansicht === 'quizze' && (
+        <p className="rounded-2xl bg-quizzo-yellow/15 px-5 py-3 text-xl ring-2 ring-quizzo-yellow/60">
+          🏆 <b>Klassen-Duell:</b> Hake {MIN_KATEGORIEN} bis {MAX_KATEGORIEN} Quizze ab – jedes wird eine Kategorie (in der Reihenfolge, in der du sie abhakst).
+        </p>
+      )}
       {fehler.length === 1 && <Meldung art="fehler">{fehler[0]}</Meldung>}
       {fehler.length > 1 && (
         <div role="alert" className="rounded-2xl bg-red-500/20 px-5 py-4 text-lg font-semibold text-red-100 ring-2 ring-red-400/60">
@@ -498,6 +516,12 @@ export default function QuizListe() {
                         key={q.id}
                         q={q}
                         ordnerZeigen={ordner === null || (!!suche && ordner !== '')}
+                        duellNummer={duellWahl === null ? undefined : duellWahl.indexOf(q.id) + 1}
+                        duellUmschalten={() =>
+                          setDuellWahl((w) =>
+                            w === null ? w : w.includes(q.id) ? w.filter((x) => x !== q.id) : w.length >= MAX_KATEGORIEN ? w : [...w, q.id],
+                          )
+                        }
                         startet={startet}
                         spielen={() => setStartDialog(q)}
                         verteilen={() => aufgabeOeffnen(q)}
@@ -513,6 +537,28 @@ export default function QuizListe() {
             </div>
           )}
         </>
+      )}
+
+      {duellWahl !== null && ansicht === 'quizze' && (
+        <div className="fixed bottom-4 left-1/2 z-30 flex max-w-[calc(100%-2rem)] -translate-x-1/2 flex-wrap items-center gap-3 rounded-3xl bg-quizzo-navy-dark px-5 py-3 shadow-2xl ring-2 ring-quizzo-yellow">
+          <span className="text-xl font-extrabold">
+            🏆 {duellWahl.length} {duellWahl.length === 1 ? 'Quiz' : 'Quizze'} gewählt
+          </span>
+          <Knopf onClick={() => setDuellDialog(true)} disabled={duellWahl.length < MIN_KATEGORIEN} className="!py-3">
+            Weiter
+          </Knopf>
+          <Knopf art="leise" onClick={() => setDuellWahl(null)} className="!py-3">
+            Abbrechen
+          </Knopf>
+        </div>
+      )}
+
+      {duellDialog && duellWahl && (
+        <DuellEinrichten
+          titel={duellWahl.map((id) => quizze?.find((q) => q.id === id)?.titel ?? '?')}
+          starten={(e) => navigate(alsAdresse({ ...e, quizIds: duellWahl }))}
+          abbrechen={() => setDuellDialog(false)}
+        />
       )}
 
       {verschieben && (
@@ -627,9 +673,14 @@ function QuizZeile({
   kopieren,
   exportieren,
   loeschen,
+  duellNummer,
+  duellUmschalten,
 }: {
   q: QuizUebersicht
   ordnerZeigen: boolean
+  /** Klassen-Duell-Auswahl: undefined = aus, 0 = nicht gewählt, sonst Nummer der Kategorie */
+  duellNummer?: number
+  duellUmschalten?: () => void
   startet: string | null
   spielen: () => void
   verteilen: () => void
@@ -639,8 +690,26 @@ function QuizZeile({
   loeschen: () => void
 }) {
   const leer = q.anzahlFragen === 0
+  const gewaehlt = !!duellNummer
   return (
-    <li className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-3xl bg-quizzo-navy-light/70 px-5 py-4 ring-1 ring-white/10">
+    <li
+      className={`flex flex-wrap items-center gap-x-4 gap-y-3 rounded-3xl bg-quizzo-navy-light/70 px-5 py-4 ring-1 ${gewaehlt ? 'ring-4 ring-quizzo-yellow' : 'ring-white/10'}`}
+    >
+      {duellNummer !== undefined && (
+        <button
+          type="button"
+          onClick={duellUmschalten}
+          disabled={leer}
+          role="checkbox"
+          aria-checked={gewaehlt}
+          aria-label={`${q.titel} fürs Klassen-Duell wählen`}
+          className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-2xl font-black transition disabled:opacity-30 ${
+            gewaehlt ? 'bg-quizzo-yellow text-quizzo-navy' : 'bg-white/10 ring-2 ring-white/40 hover:ring-quizzo-yellow'
+          }`}
+        >
+          {gewaehlt ? duellNummer : ''}
+        </button>
+      )}
       <Link to={`/leiten/quiz/${q.id}`} className="group min-w-56 flex-1" title="Bearbeiten">
         <h3 className="text-2xl font-extrabold leading-tight break-words group-hover:text-quizzo-yellow">{q.titel}</h3>
         <p className="mt-1 text-base text-white/65">

@@ -9,6 +9,7 @@ import Mitspielen from './pages/Mitspielen.tsx'
 import Wiederholen from './pages/Wiederholen.tsx'
 import Aufgabe from './pages/Aufgabe.tsx'
 import AufgabeDetail from './pages/lehrkraft/AufgabeDetail.tsx'
+import Duell from './pages/lehrkraft/Duell.tsx'
 
 export default function App() {
   return (
@@ -29,6 +30,14 @@ export default function App() {
           element={
             <NurAngemeldet>
               <SpielLeiten />
+            </NurAngemeldet>
+          }
+        />
+        <Route
+          path="/leiten/duell"
+          element={
+            <NurAngemeldet>
+              <Duell />
             </NurAngemeldet>
           }
         />

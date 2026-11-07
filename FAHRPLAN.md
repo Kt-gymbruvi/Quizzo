@@ -58,6 +58,9 @@ Außerdem in Etappe 4: Punkte pro Frage (keine/normal/doppelt), Quiz importieren
   keine Lösungen auf dem Handy, Codes bei Gerätewechsel freigeben; Löschung spätestens nach 30 Tagen
   (Ideen für später: Fragen in zufälliger Reihenfolge, Medien auf dem Handy erlauben, Frist verlängern)
 - 🔨 Zeitlimit pro Frage für Hausaufgabe und Prüfung – Etappe 9 (gegen Nachschlagen/KI-Hilfe; verhindert sie nicht ganz)
+- 🔨 Klassen-Duell (Jeopardy-Stil) – Etappe 11, fertig, noch nicht veröffentlicht: in „Meine Quizze“ 2–6 Quizze abhaken
+  (= Kategorien), 2–6 Teams, 3–5 Felder (100–500 Punkte), Fragen der Reihe nach oder zufällig, optional Abzug bei
+  falscher Antwort; nur am Beamer, Spielstand nur auf dem Lehrkraft-Gerät, Rückgängig, Endstand
 - ✅ Turnier – Etappe 7, veröffentlicht: nach dem Endstand „Runde 2 mit anderem Quiz“,
   dieselben Mitspielenden und Teams, Punkte laufen weiter, Antworten der Vorrunde werden gelöscht
 - ✅ Wiederholung – Etappe 7, veröffentlicht: falsch beantwortete Fragen merkt sich nur das
