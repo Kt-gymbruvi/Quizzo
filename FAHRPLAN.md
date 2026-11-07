@@ -11,7 +11,9 @@ Stand: November 2026. ✅ = fertig, 🔨 = in Arbeit, ⏳ = geplant
   - Beamer (iPad quer) und Handy ohne Scrollen: Inhalt wird automatisch verkleinert, wenn er nicht passt
     (Lobby, Frage, Auswertung, Endstand; Handy auch bei langen Antworten, in Aufgaben und in der Wiederholung)
   - „Meine Quizze“ neu: Ordner (Spalte links), Suche, Sortierung (zuletzt bearbeitet / zuletzt gespielt / Name),
-    kompakte Zeilen mit „▶ Spielen“, „📝 Verteilen“ und „⋯“-Menü; verteilte Aufgaben in eigenem Reiter
+    kompakte Zeilen mit „▶ Spielen“, „📝 Verteilen“ und „⋯“-Menü; verteilte Aufgaben in eigenem Reiter (veröffentlicht)
+  - Unterordner (z. B. Oberstufe › Evolution › Selektion): Baum links, Brotkrumen, Unterordner-Kacheln,
+    Ordner anlegen/umbenennen/verschieben/auflösen – ohne neue SQL-Datei (noch nicht veröffentlicht)
   - Zeitlimit pro Frage bei Hausaufgabe und Prüfung (feste Zeit oder Zeiten aus dem Quiz); Fragen werden erst
     beim Öffnen übertragen, zu spät = 0 Punkte, die Lehrkraft sieht ⏱ in den Ergebnissen
 

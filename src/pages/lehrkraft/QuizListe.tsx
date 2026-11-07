@@ -3,12 +3,12 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { Knopf, LehrkraftKopf, Meldung } from '../../components.tsx'
 import { exportiereQuiz, importiereQuiz, pruefeQuiz } from '../../lib/fragetypen.ts'
 import {
-  benenneOrdnerUm,
+  aendereOrdner,
   ladeQuiz,
   ladeQuizze,
   loescheQuiz,
   merkeBenutzt,
-  ordnerName,
+  pruefeOrdner,
   speichereQuiz,
   verschiebeQuiz,
   type QuizUebersicht,
@@ -19,6 +19,7 @@ import { AufgabeErstellen } from './AufgabeErstellen.tsx'
 import { AufgabenUebersicht } from './AufgabenUebersicht.tsx'
 import { erstelleAufgabe, type Aufgabenmodus } from '../../lib/aufgaben.ts'
 import { fehlerText } from '../../lib/supabase.ts'
+import { MAX_LAENGE, TRENNER, alleOrdner, elternOrdner, liegtIn, ordnerAnzeige, ordnerName, ordnerPfad, ordnerTeile, umbenannt, unterordner } from '../../lib/ordner.ts'
 
 const datumFormat = new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'short', year: 'numeric' })
 
@@ -33,17 +34,21 @@ const SORTIERUNGEN: { wert: Sortierung; text: string }[] = [
   { wert: 'name', text: 'Name (A–Z)' },
 ]
 
-/** Ordner-Auswahl: null = alle Quizze, '' = ohne Ordner, sonst der Ordnername */
+/** Ordner-Auswahl: null = alle Quizze, '' = ohne Ordner, sonst der Ordnerpfad (z. B. „Oberstufe/Evolution“) */
 type OrdnerWahl = string | null
 
 // Gewählter Ordner und Sortierung bleiben auf diesem Gerät gemerkt (nur Bequemlichkeit)
 const SPEICHER = 'quizzo-quizliste'
-function gemerkt(): { ordner: OrdnerWahl; sortierung: Sortierung } {
+function gemerkt(): { ordner: OrdnerWahl; sortierung: Sortierung; leer: string[] } {
   try {
     const g = JSON.parse(localStorage.getItem(SPEICHER) ?? '{}')
-    return { ordner: typeof g.ordner === 'string' ? g.ordner : null, sortierung: SORTIERUNGEN.some((s) => s.wert === g.sortierung) ? g.sortierung : 'geaendert' }
+    return {
+      ordner: typeof g.ordner === 'string' ? g.ordner : null,
+      sortierung: SORTIERUNGEN.some((s) => s.wert === g.sortierung) ? g.sortierung : 'geaendert',
+      leer: Array.isArray(g.leer) ? g.leer.filter((x: unknown) => typeof x === 'string').slice(0, 50) : [],
+    }
   } catch {
-    return { ordner: null, sortierung: 'geaendert' }
+    return { ordner: null, sortierung: 'geaendert', leer: [] }
   }
 }
 
@@ -62,7 +67,10 @@ export default function QuizListe() {
   const [aufgabeLaeuft, setAufgabeLaeuft] = useState(false)
   const [aufgabenStand, setAufgabenStand] = useState(0)
   const [verschieben, setVerschieben] = useState<QuizUebersicht | null>(null)
+  const [ordnerZiel, setOrdnerZiel] = useState<string | null>(null)
   const [ordner, setOrdner] = useState<OrdnerWahl>(() => gemerkt().ordner)
+  // Neu angelegte, noch leere Ordner merkt sich nur dieses Gerät – bis ein Quiz darin liegt
+  const [leereOrdner, setLeereOrdner] = useState<string[]>(() => gemerkt().leer)
   const [sortierung, setSortierung] = useState<Sortierung>(() => gemerkt().sortierung)
   const [suche, setSuche] = useState('')
   const navigate = useNavigate()
@@ -70,11 +78,11 @@ export default function QuizListe() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(SPEICHER, JSON.stringify({ ordner, sortierung }))
+      localStorage.setItem(SPEICHER, JSON.stringify({ ordner, sortierung, leer: leereOrdner }))
     } catch {
       /* egal */
     }
-  }, [ordner, sortierung])
+  }, [ordner, sortierung, leereOrdner])
 
   const laden = useCallback(() => {
     ladeQuizze()
@@ -87,24 +95,27 @@ export default function QuizListe() {
 
   useEffect(laden, [laden])
 
-  // Alle Ordner mit Anzahl, alphabetisch
-  const ordnerListe = useMemo(() => {
-    const z = new Map<string, number>()
-    for (const q of quizze ?? []) if (q.ordner) z.set(q.ordner, (z.get(q.ordner) ?? 0) + 1)
-    return [...z.entries()].sort(([a], [b]) => vergleich.compare(a, b))
-  }, [quizze])
+  // Alle Ordner samt übergeordneten, als Baum sortiert; Anzahl zählt Unterordner mit
+  const ordnerListe = useMemo(() => alleOrdner([...(quizze ?? []).map((q) => q.ordner), ...leereOrdner]), [quizze, leereOrdner])
+  const anzahlIn = (o: string) => (quizze ?? []).filter((q) => liegtIn(q.ordner, o)).length
   const ohneOrdner = (quizze ?? []).filter((q) => !q.ordner).length
 
-  // Gemerkter Ordner gibt es nicht mehr (z. B. aufgelöst): zurück zu „Alle“
+  // Gemerkter Ordner gibt es nicht mehr (z. B. aufgelöst): zum nächsten vorhandenen übergeordneten
   useEffect(() => {
-    if (quizze && ordner && !ordnerListe.some(([n]) => n === ordner)) setOrdner(null)
+    if (!quizze || !ordner || ordnerListe.includes(ordner)) return
+    let o: string | null = elternOrdner(ordner)
+    while (o && !ordnerListe.includes(o)) o = elternOrdner(o)
+    setOrdner(o)
   }, [quizze, ordner, ordnerListe])
 
+  const unterordnerHier = ordner ? unterordner(ordnerListe, ordner) : []
   const sichtbar = useMemo(() => {
     const s = suche.trim().toLocaleLowerCase('de')
-    const liste = (quizze ?? []).filter(
-      (q) => (ordner === null || (ordner === '' ? !q.ordner : q.ordner === ordner)) && (!s || q.titel.toLocaleLowerCase('de').includes(s) || q.ordner?.toLocaleLowerCase('de').includes(s)),
-    )
+    const liste = (quizze ?? []).filter((q) => {
+      // Im Ordner: nur was direkt darin liegt (Unterordner stehen als Kacheln darüber) – beim Suchen auch in Unterordnern
+      const passtOrdner = ordner === null || (ordner === '' ? !q.ordner : s ? liegtIn(q.ordner, ordner) : q.ordner === ordner)
+      return passtOrdner && (!s || q.titel.toLocaleLowerCase('de').includes(s) || q.ordner?.toLocaleLowerCase('de').includes(s))
+    })
     const zeit = (d: string | null) => (d ? new Date(d).getTime() : 0)
     return liste.sort((a, b) =>
       sortierung === 'name'
@@ -217,43 +228,94 @@ export default function QuizListe() {
     }
   }
 
+  const fehlerMeldung = (err: unknown) => setFehler([err instanceof Error && !('code' in err) ? err.message : fehlerText(err)])
+
   async function nachOrdner(q: QuizUebersicht, ziel: string | null) {
-    setVerschieben(null)
     try {
-      await verschiebeQuiz(q.id, ziel)
-      melde(ziel ? `„${q.titel}“ liegt jetzt im Ordner „${ordnerName(ziel)}“.` : `„${q.titel}“ liegt jetzt in keinem Ordner.`)
+      const pfad = pruefeOrdner(ziel)
+      setVerschieben(null)
+      await verschiebeQuiz(q.id, pfad)
+      melde(pfad ? `„${q.titel}“ liegt jetzt im Ordner „${ordnerAnzeige(pfad)}“.` : `„${q.titel}“ liegt jetzt in keinem Ordner.`)
       laden()
     } catch (err) {
-      setFehler([fehlerText(err)])
+      fehlerMeldung(err)
     }
+  }
+
+  /** Leere Ordner wandern beim Umbenennen/Verschieben mit; beim Auflösen verschwindet der Ordner selbst */
+  function leereMitnehmen(alt: string, neu: string | null, aufloesen = false) {
+    setLeereOrdner((l) => [
+      ...new Set(
+        l.flatMap((o) => {
+          if (!liegtIn(o, alt)) return [o]
+          if (aufloesen && o === alt) return []
+          const n = umbenannt(o, alt, neu)
+          return n ? [n] : []
+        }),
+      ),
+    ])
+  }
+
+  function unterordnerAnlegen(eltern: string | null) {
+    const eingabe = window.prompt(eltern ? `Name des neuen Unterordners in „${ordnerName(eltern)}“:` : 'Name des neuen Ordners:')
+    const name = ordnerPfad(eingabe?.replaceAll(TRENNER, ' ') ?? '')
+    if (!name) return
+    const pfad = eltern ? `${eltern}${TRENNER}${name}` : name
+    try {
+      pruefeOrdner(pfad)
+    } catch (err) {
+      return fehlerMeldung(err)
+    }
+    if (!ordnerListe.includes(pfad)) setLeereOrdner((l) => [...l, pfad])
+    setOrdner(pfad)
+    melde(`Ordner „${name}“ angelegt. Lege Quizze über „⋯ → In Ordner legen“ hinein – leere Ordner merkt sich nur dieses Gerät.`)
   }
 
   async function ordnerUmbenennen(alt: string) {
-    const neu = ordnerName(window.prompt(`Neuer Name für den Ordner „${alt}“:`, alt))
-    if (!neu || neu === alt) return
+    const eltern = elternOrdner(alt)
+    const eingabe = window.prompt(`Neuer Name für den Ordner „${ordnerName(alt)}“:`, ordnerName(alt))
+    const name = ordnerPfad(eingabe?.replaceAll(TRENNER, ' ') ?? '')
+    if (!name || name === ordnerName(alt)) return
+    const neu = eltern ? `${eltern}${TRENNER}${name}` : name
     try {
-      await benenneOrdnerUm(alt, neu)
+      await aendereOrdner(quizze ?? [], alt, neu)
+      leereMitnehmen(alt, neu)
       setOrdner(neu)
-      melde(`Der Ordner heißt jetzt „${neu}“.`)
+      melde(`Der Ordner heißt jetzt „${name}“.`)
       laden()
     } catch (err) {
-      setFehler([fehlerText(err)])
+      fehlerMeldung(err)
     }
   }
 
-  async function ordnerAufloesen(name: string) {
-    if (!window.confirm(`Ordner „${name}“ auflösen? Die Quizze darin bleiben erhalten und liegen danach ohne Ordner.`)) return
+  async function ordnerAufloesen(pfad: string) {
+    const eltern = elternOrdner(pfad)
+    const wohin = eltern ? `in „${ordnerName(eltern)}“` : 'ohne Ordner'
+    if (!window.confirm(`Ordner „${ordnerName(pfad)}“ auflösen? Die Quizze und Unterordner darin bleiben erhalten und liegen danach ${wohin}.`)) return
     try {
-      await benenneOrdnerUm(name, null)
-      setOrdner(null)
-      melde(`Der Ordner „${name}“ wurde aufgelöst.`)
+      await aendereOrdner(quizze ?? [], pfad, eltern)
+      leereMitnehmen(pfad, eltern, true)
+      setOrdner(eltern)
+      melde(`Der Ordner „${ordnerName(pfad)}“ wurde aufgelöst.`)
       laden()
     } catch (err) {
-      setFehler([fehlerText(err)])
+      fehlerMeldung(err)
     }
   }
 
-  const ordnerTitel = ordner === null ? 'Alle Quizze' : ordner === '' ? 'Ohne Ordner' : ordner
+  async function ordnerVerschieben(pfad: string, ziel: string | null) {
+    setOrdnerZiel(null)
+    const neu = ziel ? `${ziel}${TRENNER}${ordnerName(pfad)}` : ordnerName(pfad)
+    try {
+      await aendereOrdner(quizze ?? [], pfad, neu)
+      leereMitnehmen(pfad, neu)
+      setOrdner(neu)
+      melde(`Der Ordner „${ordnerName(pfad)}“ liegt jetzt ${ziel ? `in „${ordnerAnzeige(ziel)}“` : 'auf der obersten Ebene'}.`)
+      laden()
+    } catch (err) {
+      fehlerMeldung(err)
+    }
+  }
 
   return (
     <main className="flex min-h-dvh flex-col gap-6 px-6 py-5 lg:px-10">
@@ -315,31 +377,66 @@ export default function QuizListe() {
               {/* Ordner: am iPad quer als Spalte links, schmaler als Leiste zum Wischen */}
               <nav aria-label="Ordner" className="flex gap-2 overflow-x-auto pb-1 lg:sticky lg:top-4 lg:flex-col lg:overflow-visible">
                 <OrdnerKnopf aktiv={ordner === null} onClick={() => setOrdner(null)} symbol="📚" name="Alle Quizze" anzahl={quizze.length} />
-                {ordnerListe.map(([name, n]) => (
-                  <OrdnerKnopf key={name} aktiv={ordner === name} onClick={() => setOrdner(name)} symbol="📁" name={name} anzahl={n} />
-                ))}
+                {/* Baum: oberste Ebene immer, Unterordner nur entlang des gewählten Ordners aufgeklappt */}
+                {ordnerListe
+                  .filter((o) => {
+                    const e = elternOrdner(o)
+                    return e === null || (!!ordner && liegtIn(ordner, e))
+                  })
+                  .map((o) => (
+                    <OrdnerKnopf
+                      key={o}
+                      aktiv={ordner === o}
+                      onClick={() => setOrdner(o)}
+                      symbol={ordner && liegtIn(ordner, o) && unterordner(ordnerListe, o).length ? '📂' : '📁'}
+                      name={ordnerName(o)}
+                      anzahl={anzahlIn(o)}
+                      tiefe={ordnerTeile(o).length - 1}
+                      titel={ordnerAnzeige(o)}
+                    />
+                  ))}
                 {ordnerListe.length > 0 && ohneOrdner > 0 && (
                   <OrdnerKnopf aktiv={ordner === ''} onClick={() => setOrdner('')} symbol="📄" name="Ohne Ordner" anzahl={ohneOrdner} />
                 )}
-                {ordnerListe.length === 0 && (
-                  <p className="hidden px-3 pt-2 text-base text-white/55 lg:block">Ordner legst du an, indem du ein Quiz über „⋯ → In Ordner legen“ einsortierst.</p>
-                )}
+                <button onClick={() => unterordnerAnlegen(null)} className="shrink-0 rounded-2xl px-4 py-2.5 text-left text-base font-semibold text-white/70 hover:bg-white/10 hover:text-white lg:w-full">
+                  + Neuer Ordner
+                </button>
               </nav>
 
               <section className="flex min-w-0 flex-col gap-4" aria-labelledby="ordner-titel">
                 <div className="flex flex-wrap items-center gap-3">
-                  <h2 id="ordner-titel" className="mr-auto text-3xl font-extrabold break-words">
-                    {ordnerTitel}
-                  </h2>
+                  <div className="mr-auto min-w-0">
+                    {ordner && (
+                      <nav aria-label="Ordnerpfad" className="flex flex-wrap items-center gap-1 text-lg text-white/65">
+                        <button onClick={() => setOrdner(null)} className="hover:text-quizzo-yellow hover:underline">
+                          Alle Quizze
+                        </button>
+                        {ordnerTeile(ordner)
+                          .slice(0, -1)
+                          .map((teil, i) => {
+                            const pfad = ordnerTeile(ordner).slice(0, i + 1).join(TRENNER)
+                            return (
+                              <span key={pfad} className="flex items-center gap-1">
+                                <span aria-hidden="true">›</span>
+                                <button onClick={() => setOrdner(pfad)} className="hover:text-quizzo-yellow hover:underline">
+                                  {teil}
+                                </button>
+                              </span>
+                            )
+                          })}
+                      </nav>
+                    )}
+                    <h2 id="ordner-titel" className="text-3xl font-extrabold break-words">
+                      {ordner === null ? 'Alle Quizze' : ordner === '' ? 'Ohne Ordner' : ordnerName(ordner)}
+                    </h2>
+                  </div>
                   {ordner && (
-                    <>
-                      <button onClick={() => ordnerUmbenennen(ordner)} className="rounded-xl bg-white/10 px-3 py-2 text-base font-semibold hover:bg-white/20">
-                        ✎ Umbenennen
-                      </button>
-                      <button onClick={() => ordnerAufloesen(ordner)} className="rounded-xl bg-white/10 px-3 py-2 text-base font-semibold hover:bg-white/20">
-                        Ordner auflösen
-                      </button>
-                    </>
+                    <div className="flex flex-wrap gap-2">
+                      <OrdnerAktion onClick={() => unterordnerAnlegen(ordner)}>+ Unterordner</OrdnerAktion>
+                      <OrdnerAktion onClick={() => ordnerUmbenennen(ordner)}>✎ Umbenennen</OrdnerAktion>
+                      <OrdnerAktion onClick={() => setOrdnerZiel(ordner)}>↪ Verschieben</OrdnerAktion>
+                      <OrdnerAktion onClick={() => ordnerAufloesen(ordner)}>Auflösen</OrdnerAktion>
+                    </div>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-3">
@@ -365,15 +462,42 @@ export default function QuizListe() {
                   </select>
                 </div>
 
+                {!suche && unterordnerHier.length > 0 && (
+                  <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-label="Unterordner">
+                    {unterordnerHier.map((o) => (
+                      <li key={o}>
+                        <button
+                          onClick={() => setOrdner(o)}
+                          className="flex w-full items-center gap-3 rounded-2xl bg-white/10 px-5 py-4 text-left ring-1 ring-white/10 transition hover:bg-white/15 hover:ring-quizzo-yellow"
+                        >
+                          <span className="text-3xl" aria-hidden="true">
+                            📁
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-xl font-extrabold">{ordnerName(o)}</span>
+                            <span className="text-base text-white/60">
+                              {anzahlIn(o)} {anzahlIn(o) === 1 ? 'Quiz' : 'Quizze'}
+                              {unterordner(ordnerListe, o).length > 0 && ` · ${unterordner(ordnerListe, o).length} Unterordner`}
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 {sichtbar.length === 0 ? (
-                  <p className="rounded-2xl bg-white/5 px-5 py-8 text-center text-xl text-white/70">{suche ? 'Kein Quiz gefunden.' : 'In diesem Ordner liegt kein Quiz.'}</p>
+                  !(!suche && unterordnerHier.length > 0) && (
+                    <p className="rounded-2xl bg-white/5 px-5 py-8 text-center text-xl text-white/70">
+                      {suche ? 'Kein Quiz gefunden.' : 'In diesem Ordner liegt noch kein Quiz. Lege eines über „⋯ → In Ordner legen“ hinein.'}
+                    </p>
+                  )
                 ) : (
                   <ul className="flex flex-col gap-3">
                     {sichtbar.map((q) => (
                       <QuizZeile
                         key={q.id}
                         q={q}
-                        ordnerZeigen={ordner === null}
+                        ordnerZeigen={ordner === null || (!!suche && ordner !== '')}
                         startet={startet}
                         spielen={() => setStartDialog(q)}
                         verteilen={() => aufgabeOeffnen(q)}
@@ -393,10 +517,26 @@ export default function QuizListe() {
 
       {verschieben && (
         <OrdnerDialog
-          quiz={verschieben}
-          ordner={ordnerListe.map(([n]) => n)}
+          titel="In Ordner legen"
+          untertitel={verschieben.titel}
+          ordner={ordnerListe}
+          aktuell={verschieben.ordner}
+          startEltern={ordner || null}
+          neuErlaubt
+          obersteText="Aus dem Ordner nehmen"
           waehlen={(ziel) => nachOrdner(verschieben, ziel)}
           abbrechen={() => setVerschieben(null)}
+        />
+      )}
+      {ordnerZiel && (
+        <OrdnerDialog
+          titel="Ordner verschieben"
+          untertitel={`„${ordnerName(ordnerZiel)}“ samt Inhalt verschieben nach …`}
+          ordner={ordnerListe.filter((o) => !liegtIn(o, ordnerZiel))}
+          aktuell={elternOrdner(ordnerZiel)}
+          obersteText="Auf die oberste Ebene"
+          waehlen={(ziel) => ordnerVerschieben(ordnerZiel, ziel)}
+          abbrechen={() => setOrdnerZiel(null)}
         />
       )}
 
@@ -434,12 +574,39 @@ function Reiter({ aktiv, onClick, children }: { aktiv: boolean; onClick: () => v
   )
 }
 
-function OrdnerKnopf({ aktiv, onClick, symbol, name, anzahl }: { aktiv: boolean; onClick: () => void; symbol: string; name: string; anzahl: number }) {
+function OrdnerAktion({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  return (
+    <button onClick={onClick} className="rounded-xl bg-white/10 px-3 py-2 text-base font-semibold hover:bg-white/20">
+      {children}
+    </button>
+  )
+}
+
+function OrdnerKnopf({
+  aktiv,
+  onClick,
+  symbol,
+  name,
+  anzahl,
+  tiefe = 0,
+  titel,
+}: {
+  aktiv: boolean
+  onClick: () => void
+  symbol: string
+  name: string
+  anzahl: number
+  /** Ebene im Baum (eingerückt) */
+  tiefe?: number
+  titel?: string
+}) {
   return (
     <button
       onClick={onClick}
       aria-current={aktiv ? 'true' : undefined}
-      className={`flex shrink-0 items-center gap-2 rounded-2xl px-4 py-3 text-left text-lg font-bold transition lg:w-full ${
+      title={titel}
+      style={{ ['--tiefe' as string]: `${tiefe * 1.1}rem` }}
+      className={`flex shrink-0 items-center gap-2 rounded-2xl px-4 py-3 text-left text-lg font-bold transition lg:ml-[var(--tiefe)] lg:w-[calc(100%-var(--tiefe))] ${
         aktiv ? 'bg-quizzo-yellow text-quizzo-navy' : 'bg-white/5 text-white/85 hover:bg-white/15'
       }`}
     >
@@ -560,9 +727,32 @@ function MenuPunkt({ onClick, to, label, gefahr, children }: { onClick?: () => v
   )
 }
 
-/** Quiz in einen vorhandenen oder neuen Ordner legen */
-function OrdnerDialog({ quiz, ordner, waehlen, abbrechen }: { quiz: QuizUebersicht; ordner: string[]; waehlen: (ziel: string | null) => void; abbrechen: () => void }) {
+/** Ordner auswählen (als Baum) – für „Quiz in Ordner legen“ und „Ordner verschieben“; optional neuen Ordner anlegen */
+function OrdnerDialog({
+  titel,
+  untertitel,
+  ordner,
+  aktuell,
+  startEltern = null,
+  neuErlaubt = false,
+  obersteText,
+  waehlen,
+  abbrechen,
+}: {
+  titel: string
+  untertitel: string
+  ordner: string[]
+  /** wo es gerade liegt (null = oberste Ebene/ohne Ordner) */
+  aktuell: string | null
+  /** neuer Ordner wird standardmäßig hier angelegt */
+  startEltern?: string | null
+  neuErlaubt?: boolean
+  obersteText: string
+  waehlen: (ziel: string | null) => void
+  abbrechen: () => void
+}) {
   const [neu, setNeu] = useState('')
+  const [eltern, setEltern] = useState(startEltern && ordner.includes(startEltern) ? startEltern : '')
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
     const d = dialog.current
@@ -570,6 +760,9 @@ function OrdnerDialog({ quiz, ordner, waehlen, abbrechen }: { quiz: QuizUebersic
     if (typeof d.showModal === 'function') d.showModal()
     else d.setAttribute('open', '')
   }, [])
+  const name = ordnerPfad(neu.replaceAll(TRENNER, ' '))
+  const zielNeu = name ? (eltern ? `${eltern}${TRENNER}${name}` : name) : null
+  const zuLang = !!zielNeu && zielNeu.length > MAX_LAENGE
   return (
     <dialog
       ref={dialog}
@@ -578,54 +771,76 @@ function OrdnerDialog({ quiz, ordner, waehlen, abbrechen }: { quiz: QuizUebersic
         e.preventDefault()
         abbrechen()
       }}
-      className="fixed inset-0 z-50 m-auto w-[min(36rem,calc(100%-2rem))] rounded-3xl bg-quizzo-navy p-7 text-white shadow-2xl ring-2 ring-quizzo-yellow/60 backdrop:bg-black/60"
+      className="fixed inset-0 z-50 m-auto max-h-[calc(100dvh-2rem)] w-[min(38rem,calc(100%-2rem))] overflow-y-auto rounded-3xl bg-quizzo-navy p-7 text-white shadow-2xl ring-2 ring-quizzo-yellow/60 backdrop:bg-black/60"
     >
       <div className="flex flex-col gap-5">
         <div>
           <h2 id="ordner-dialog-titel" className="text-3xl font-extrabold">
-            In Ordner legen
+            {titel}
           </h2>
-          <p className="mt-1 text-lg text-white/70 break-words">{quiz.titel}</p>
+          <p className="mt-1 text-lg text-white/70 break-words">{untertitel}</p>
         </div>
         {ordner.length > 0 && (
-          <ul className="flex max-h-[40vh] flex-col gap-2 overflow-y-auto">
+          <ul className="flex max-h-[40vh] flex-col gap-1.5 overflow-y-auto">
             {ordner.map((o) => (
-              <li key={o}>
+              <li key={o} style={{ paddingLeft: `${(ordnerTeile(o).length - 1) * 1.5}rem` }}>
                 <button
                   onClick={() => waehlen(o)}
-                  disabled={o === quiz.ordner}
-                  className="flex w-full items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 text-left text-xl font-bold hover:bg-quizzo-yellow hover:text-quizzo-navy disabled:opacity-50 disabled:hover:bg-white/10 disabled:hover:text-white"
+                  disabled={o === aktuell}
+                  aria-label={ordnerAnzeige(o)}
+                  className="flex w-full items-center gap-3 rounded-2xl bg-white/10 px-4 py-2.5 text-left text-xl font-bold hover:bg-quizzo-yellow hover:text-quizzo-navy disabled:opacity-50 disabled:hover:bg-white/10 disabled:hover:text-white"
                 >
-                  📁 <span className="min-w-0 flex-1 truncate">{o}</span>
-                  {o === quiz.ordner && <span className="text-base font-semibold">(hier)</span>}
+                  {elternOrdner(o) ? '↳ 📁' : '📁'} <span className="min-w-0 flex-1 truncate">{ordnerName(o)}</span>
+                  {o === aktuell && <span className="text-base font-semibold">(hier)</span>}
                 </button>
               </li>
             ))}
           </ul>
         )}
-        <form
-          className="flex gap-3"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (ordnerName(neu)) waehlen(neu)
-          }}
-        >
-          <input
-            value={neu}
-            onChange={(e) => setNeu(e.target.value)}
-            maxLength={60}
-            placeholder="Neuer Ordner, z. B. Mathe 7b"
-            aria-label="Name des neuen Ordners"
-            className="min-w-0 flex-1 rounded-2xl bg-white px-4 py-3 text-lg text-quizzo-navy placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-quizzo-yellow/60"
-          />
-          <Knopf type="submit" disabled={!ordnerName(neu)} className="!py-3 !text-lg">
-            Anlegen
-          </Knopf>
-        </form>
+        {neuErlaubt && (
+          <form
+            className="flex flex-col gap-3 rounded-2xl bg-white/5 p-4"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (zielNeu && !zuLang) waehlen(zielNeu)
+            }}
+          >
+            <p className="text-lg font-semibold">Neuer Ordner</p>
+            <div className="flex flex-wrap gap-3">
+              {ordner.length > 0 && (
+                <select
+                  value={eltern}
+                  onChange={(e) => setEltern(e.target.value)}
+                  aria-label="Neuen Ordner anlegen in"
+                  className="max-w-full rounded-2xl bg-white px-3 py-3 text-lg text-quizzo-navy"
+                >
+                  <option value="">oberste Ebene</option>
+                  {ordner.map((o) => (
+                    <option key={o} value={o}>
+                      in {ordnerAnzeige(o)}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <input
+                value={neu}
+                onChange={(e) => setNeu(e.target.value)}
+                maxLength={MAX_LAENGE}
+                placeholder="z. B. Evolution"
+                aria-label="Name des neuen Ordners"
+                className="min-w-40 flex-1 rounded-2xl bg-white px-4 py-3 text-lg text-quizzo-navy placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-quizzo-yellow/60"
+              />
+              <Knopf type="submit" disabled={!zielNeu || zuLang} className="!py-3 !text-lg">
+                Anlegen
+              </Knopf>
+            </div>
+            {zuLang && <p className="text-base text-red-300">Zu lang: höchstens {MAX_LAENGE} Zeichen, übergeordnete Ordner mitgezählt.</p>}
+          </form>
+        )}
         <div className="flex flex-wrap justify-between gap-3">
-          {quiz.ordner ? (
+          {aktuell ? (
             <Knopf art="leise" onClick={() => waehlen(null)} className="!text-lg">
-              Aus dem Ordner nehmen
+              {obersteText}
             </Knopf>
           ) : (
             <span />

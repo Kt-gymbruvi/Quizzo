@@ -1,6 +1,7 @@
 import { db } from './supabase.ts'
 import { bereinigeFrage, type Frage } from './fragetypen.ts'
 import { pfadeIn, raeumeMedienAuf } from './medien.ts'
+import { MAX_LAENGE, liegtIn, ordnerPfad, umbenannt } from './ordner.ts'
 
 export type QuizUebersicht = {
   id: string
@@ -31,19 +32,34 @@ export async function ladeQuizze(): Promise<QuizUebersicht[]> {
   }))
 }
 
-/** Ordnername bereinigen: Leerzeichen kürzen, höchstens 60 Zeichen, leer = ohne Ordner */
-export const ordnerName = (name: string | null | undefined) => (name ?? '').trim().replace(/\s+/g, ' ').slice(0, 60) || null
+/** Prüft einen Ordnerpfad (z. B. „Oberstufe/Evolution“) und liefert ihn bereinigt; leer = ohne Ordner. */
+export function pruefeOrdner(ordner: string | null): string | null {
+  const pfad = ordnerPfad(ordner)
+  if (pfad && pfad.length > MAX_LAENGE)
+    throw new Error(`Der Ordnername ist zu lang: höchstens ${MAX_LAENGE} Zeichen, übergeordnete Ordner mitgezählt.`)
+  return pfad
+}
 
 /** Quiz in einen Ordner legen (null = aus dem Ordner nehmen). Das Änderungsdatum bleibt. */
 export async function verschiebeQuiz(id: string, ordner: string | null) {
-  const { error } = await db().from('quizze').update({ ordner: ordnerName(ordner) }).eq('id', id)
+  const { error } = await db().from('quizze').update({ ordner: pruefeOrdner(ordner) }).eq('id', id)
   if (error) throw error
 }
 
-/** Ordner umbenennen (alle Quizze darin) oder mit `neu = null` auflösen (Quizze bleiben erhalten). */
-export async function benenneOrdnerUm(alt: string, neu: string | null) {
-  const { error } = await db().from('quizze').update({ ordner: ordnerName(neu) }).eq('ordner', alt)
-  if (error) throw error
+/**
+ * Ordner umbenennen oder verschieben (`neu` ist der ganze neue Pfad), mit `neu = null` auflösen.
+ * Unterordner wandern mit; Quizze bleiben immer erhalten.
+ */
+export async function aendereOrdner(quizze: { id: string; ordner: string | null }[], alt: string, neu: string | null) {
+  const ziel = pruefeOrdner(neu)
+  if (ziel && liegtIn(ziel, alt) && ziel !== alt) throw new Error('Ein Ordner kann nicht in sich selbst verschoben werden.')
+  const aenderungen = quizze.flatMap((q) => {
+    const o = umbenannt(q.ordner, alt, ziel)
+    return o === undefined ? [] : [{ id: q.id, ordner: pruefeOrdner(o) }]
+  })
+  const ergebnisse = await Promise.all(aenderungen.map((a) => db().from('quizze').update({ ordner: a.ordner }).eq('id', a.id)))
+  const fehler = ergebnisse.find((e) => e.error)?.error
+  if (fehler) throw fehler
 }
 
 /** Merkt sich „zuletzt benutzt“ (zum Sortieren). Fehler sind egal. */
