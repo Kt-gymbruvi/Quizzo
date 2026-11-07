@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Knopf, Logo, ZurueckLink } from '../components.tsx'
+import { Einpassen } from '../einpassen.tsx'
 import { HandyEingabe, loesungText } from '../spiel/Handy.tsx'
 import { bewerte, entferneUebung, ladeUebungen, loescheAlleUebungen, type Uebung } from '../lib/wiederholung.ts'
 
@@ -92,13 +93,13 @@ export default function Wiederholen() {
   }
 
   return (
-    <main className="mx-auto flex h-dvh max-w-md flex-col gap-3 overflow-y-auto px-4 py-3">
+    <main className="mx-auto flex h-dvh max-w-md flex-col gap-3 overflow-hidden px-4 py-3">
       <header className="flex shrink-0 items-center justify-between gap-3">
         <Logo />
         <ZurueckLink />
       </header>
       <h1 className="shrink-0 text-2xl font-extrabold">🔁 Wiederholen</h1>
-      {inhalt}
+      <Einpassen minimum={0.6}>{inhalt}</Einpassen>
       {liste.length > 0 && !ergebnis && (
         <footer className="shrink-0 text-center text-sm text-white/60">
           Nur auf diesem Gerät gespeichert, höchstens 30 Tage.{' '}

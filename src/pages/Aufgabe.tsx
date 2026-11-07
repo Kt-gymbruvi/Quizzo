@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Knopf, Logo, Meldung, ZurueckLink } from '../components.tsx'
+import { Einpassen } from '../einpassen.tsx'
 import { HandyEingabe, loesungText } from '../spiel/Handy.tsx'
 import {
   beantworte,
@@ -9,15 +10,17 @@ import {
   ladeAufgabeZustand,
   merkeAufgabe,
   oeffneAufgabe,
+  oeffneFrage,
   trittAufgabeBei,
   MODUS_INFO,
   type AufgabeInfo,
+  type AufgabenFrage,
   type AufgabeTeilnahme,
   type AufgabeZustand,
   type Aufgabenmodus,
 } from '../lib/aufgaben.ts'
 import { FRAGETYPEN } from '../lib/fragetypen.ts'
-import type { SchuelerFrage } from '../lib/spiel.ts'
+import { useCountdown, type SchuelerFrage } from '../lib/spiel.ts'
 import { fehlerText } from '../lib/supabase.ts'
 import { ladeUebungen, merkeErgebnis } from '../lib/wiederholung.ts'
 
@@ -27,13 +30,16 @@ const frist = new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: 'numeric
 
 function Rahmen({ titel, children }: { titel?: string; children: ReactNode }) {
   return (
-    <main className="mx-auto flex h-dvh max-w-md flex-col gap-3 overflow-y-auto px-4 py-3">
+    <main className="mx-auto flex h-dvh max-w-md flex-col gap-3 overflow-hidden px-4 py-3">
       <header className="flex shrink-0 items-center justify-between gap-3">
         <Logo />
         <ZurueckLink />
       </header>
       {titel && <h1 className="shrink-0 text-xl font-extrabold break-words text-white/90">{titel}</h1>}
-      {children}
+      {/* Zu viel Inhalt wird verkleinert statt abgeschnitten – kein Scrollen */}
+      <Einpassen minimum={0.6}>
+        <div className="flex flex-1 flex-col gap-3">{children}</div>
+      </Einpassen>
     </main>
   )
 }
@@ -225,7 +231,10 @@ function Anmelden({ info, titel, angemeldet }: { info: AufgabeInfo; titel: strin
   )
 }
 
-type Rueckmeldung = { frage: SchuelerFrage; anteil: number; punkte?: number; loesung: unknown }
+type Rueckmeldung = { frage: SchuelerFrage; anteil: number; punkte?: number; loesung: unknown; zuSpaet?: boolean }
+
+/** „90 Sekunden“, „1 Minute“, „2 Minuten“ */
+const zeitText = (s: number) => (s < 60 || s % 60 ? `${s} Sekunden` : s === 60 ? '1 Minute' : `${s / 60} Minuten`)
 
 function Bearbeiten({
   code,
@@ -238,11 +247,18 @@ function Bearbeiten({
   code: string
   modus: Aufgabenmodus
   titel: string
-  fragen: SchuelerFrage[]
+  fragen: AufgabenFrage[]
   teilnahme: AufgabeTeilnahme | null
   start: AufgabeZustand | null
 }) {
   const einmalig = modus !== 'selbstlernen'
+  // Zeitlimit: Fragen kommen erst beim Öffnen vom Server, die Zeit läuft dort mit
+  const mitZeit = einmalig && !!start?.mit_zeit
+  const [inhalte, setInhalte] = useState<Record<number, SchuelerFrage>>(() => Object.fromEntries(fragen.flatMap((f, n) => (f.verdeckt ? [] : [[n, f]]))))
+  const [uhr, setUhr] = useState<{ nr: number; restzeit_ms: number } | null>(null)
+  const [oeffnet, setOeffnet] = useState(false)
+  const [hinweis, setHinweis] = useState<string | null>(null)
+  const sekunden = useCountdown(uhr?.restzeit_ms, `uhr-${uhr?.nr}`)
   const [erledigt, setErledigt] = useState<Set<number>>(() => new Set(start?.antworten.map((a) => a.frage_nr) ?? []))
   // erste noch offene Frage (Folien davor überspringen wir beim Weitermachen)
   const erste = () => {
@@ -270,37 +286,78 @@ function Bearbeiten({
     setNr((n) => naechste(n))
   }
 
+  /** Fehler der Server-Funktionen einheitlich behandeln */
+  function fehlerBehandeln(err: unknown) {
+    const text = fehlerText(err)
+    if (/schon beantwortet/.test(text)) {
+      setErledigt((s) => new Set(s).add(nr))
+      setUhr(null)
+      setNr((n) => naechste(n))
+    } else if (/beendet/.test(text)) {
+      setBeendet(true)
+    } else {
+      setFehler(text)
+    }
+  }
+
+  async function frageOeffnen(n: number) {
+    if (!teilnahme || oeffnet) return
+    setOeffnet(true)
+    setFehler(null)
+    setHinweis(null)
+    try {
+      const r = await oeffneFrage(teilnahme, n)
+      setInhalte((i) => ({ ...i, [n]: r.frage }))
+      setUhr({ nr: n, restzeit_ms: r.restzeit_ms ?? 0 })
+    } catch (err) {
+      fehlerBehandeln(err)
+    } finally {
+      setOeffnet(false)
+    }
+  }
+
+  // Nach dem Neuladen: schon geöffnete Frage direkt weiterzeigen (die Zeit lief auf dem Server weiter)
+  const fortgesetzt = useRef(false)
+  useEffect(() => {
+    if (fortgesetzt.current || !mitZeit) return
+    fortgesetzt.current = true
+    if (start?.geoeffnet?.some((g) => g.frage_nr === nr)) frageOeffnen(nr)
+  }, [])
+
   async function senden(antwort: unknown) {
     if (sendet) return
-    const frage = fragen[nr]
+    const frage = inhalte[nr] ?? fragen[nr]
     setSendet(true)
     setFehler(null)
     try {
       const r = await beantworte(code, teilnahme, nr, antwort)
+      setUhr(null)
       setErledigt((s) => new Set(s).add(nr))
       const anteil = r.anteil ?? 0
       setErgebnisse((e) => ({ ...e, [nr]: anteil }))
       if (r.punkte) setPunkte((p) => p + (r.punkte ?? 0))
       if (modus === 'pruefung') {
+        if (r.zu_spaet) setHinweis('Die Zeit für die letzte Frage war abgelaufen.')
         setNr((n) => naechste(n))
       } else {
         merkeErgebnis(frage, r.loesung, anteil)
-        setRueck({ frage, anteil, punkte: r.punkte, loesung: r.loesung })
+        setRueck({ frage, anteil, punkte: r.punkte, loesung: r.loesung, zuSpaet: r.zu_spaet })
       }
     } catch (err) {
-      const text = fehlerText(err)
-      if (/schon beantwortet/.test(text)) {
-        setErledigt((s) => new Set(s).add(nr))
-        setNr((n) => naechste(n))
-      } else if (/beendet/.test(text)) {
-        setBeendet(true)
-      } else {
-        setFehler(text)
-      }
+      fehlerBehandeln(err)
     } finally {
       setSendet(false)
     }
   }
+
+  // Zeit abgelaufen: automatisch „keine Antwort“ schicken (einmal pro Frage)
+  const abgelaufen = useRef(-1)
+  useEffect(() => {
+    if (uhr && uhr.nr === nr && sekunden === 0 && abgelaufen.current !== nr && !rueck) {
+      abgelaufen.current = nr
+      senden(null)
+    }
+  }, [sekunden, uhr, nr, rueck])
 
   const fertig = nr >= fragen.length
   const anzahl = fragen.filter((f) => f.typ !== 'folie').length
@@ -312,15 +369,48 @@ function Bearbeiten({
     inhalt = <RueckmeldungAnzeige r={rueck} modus={modus} weiter={weiter} letzte={naechste(nr) >= fragen.length} />
   } else if (fertig) {
     inhalt = <Fertig modus={modus} ergebnisse={ergebnisse} fragen={fragen} punkte={punkte} nochmal={() => { setErgebnisse({}); setNr(0) }} />
-  } else {
-    const frage = fragen[nr]
+  } else if (mitZeit && fragen[nr].typ !== 'folie' && uhr?.nr !== nr) {
+    // Zeitlimit: erst bestätigen, dann startet die Zeit
     const position = fragen.slice(0, nr + 1).filter((f) => f.typ !== 'folie').length
     inhalt = (
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
-        <p className="shrink-0 text-base text-white/70">
-          {frage.typ === 'folie' ? 'Info' : `Frage ${position} von ${anzahl}`} · ohne Zeitdruck
-          {modus === 'pruefung' && ' · keine Rückmeldung'}
+      <section className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
+        <p className="text-6xl" aria-hidden="true">
+          ⏱
         </p>
+        <p className="text-3xl font-black">
+          Frage {position} von {anzahl}
+        </p>
+        <p className="text-xl text-white/85">
+          Du hast <b className="text-quizzo-yellow">{zeitText(fragen[nr].zeitlimit)}</b> Zeit. Sie startet, sobald du die Frage öffnest, und läuft weiter, auch wenn du die Seite verlässt.
+        </p>
+        {hinweis && <p className="rounded-2xl bg-red-600/80 px-4 py-2 text-lg font-bold">{hinweis}</p>}
+        {fehler && <Meldung art="fehler">{fehler}</Meldung>}
+        <Knopf onClick={() => frageOeffnen(nr)} disabled={oeffnet} className="w-full !py-5 !text-2xl">
+          {oeffnet ? 'Einen Moment …' : 'Frage öffnen'}
+        </Knopf>
+      </section>
+    )
+  } else {
+    const frage = inhalte[nr] ?? fragen[nr]
+    const position = fragen.slice(0, nr + 1).filter((f) => f.typ !== 'folie').length
+    const laeuft = uhr?.nr === nr
+    inhalt = (
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        <div className="flex shrink-0 items-center justify-between gap-3 text-base text-white/70">
+          <span>
+            {frage.typ === 'folie' ? 'Info' : `Frage ${position} von ${anzahl}`}
+            {!laeuft && ' · ohne Zeitdruck'}
+            {modus === 'pruefung' && ' · keine Rückmeldung'}
+          </span>
+          {laeuft && sekunden !== null && (
+            <span
+              className={`flex h-12 min-w-12 shrink-0 items-center justify-center rounded-full px-2 text-2xl font-black tabular-nums ${sekunden <= 5 ? 'bg-red-500 text-white' : 'bg-quizzo-yellow text-quizzo-navy'}`}
+              aria-label="Restzeit in Sekunden"
+            >
+              {sekunden}
+            </span>
+          )}
+        </div>
         <p className={`shrink-0 font-bold leading-snug ${frage.text.length > 120 ? 'text-base' : frage.text.length > 60 ? 'text-lg' : 'text-xl'}`}>{frage.text}</p>
         {frage.typ === 'folie' ? (
           <div className="flex flex-1 flex-col justify-between gap-4">
@@ -329,6 +419,8 @@ function Bearbeiten({
               Weiter
             </Knopf>
           </div>
+        ) : laeuft && sekunden === 0 ? (
+          <p className="m-auto text-3xl font-black">⏱ Zeit abgelaufen</p>
         ) : (
           <HandyEingabe key={nr} frage={frage} senden={senden} />
         )}
@@ -356,17 +448,17 @@ function RueckmeldungAnzeige({ r, modus, weiter, letzte }: { r: Rueckmeldung; mo
   const bewertet = FRAGETYPEN[r.frage.typ].bewertet
   const richtig = r.anteil >= 1
   const loesung = bewertet && !richtig ? loesungText(r.frage, r.loesung) : null
-  const farbe = !bewertet ? 'bg-quizzo-navy-light' : richtig ? 'bg-green-600' : r.anteil > 0 ? 'bg-amber-600' : 'bg-red-600'
+  const farbe = r.zuSpaet ? 'bg-red-600' : !bewertet ? 'bg-quizzo-navy-light' : richtig ? 'bg-green-600' : r.anteil > 0 ? 'bg-amber-600' : 'bg-red-600'
   return (
-    <div className={`-mx-4 flex flex-1 flex-col items-center justify-center gap-4 rounded-3xl px-5 py-6 text-center ${farbe}`}>
-      <p className="text-5xl font-black">{!bewertet ? 'Danke!' : richtig ? 'Richtig!' : r.anteil > 0 ? 'Fast!' : 'Leider falsch'}</p>
+    <div className={`flex flex-1 flex-col items-center justify-center gap-4 rounded-3xl px-5 py-6 text-center ${farbe}`}>
+      <p className="text-5xl font-black">{r.zuSpaet ? '⏱ Zeit abgelaufen' : !bewertet ? 'Danke!' : richtig ? 'Richtig!' : r.anteil > 0 ? 'Fast!' : 'Leider falsch'}</p>
       {modus === 'hausaufgabe' && bewertet && <p className="text-2xl font-bold">+{r.punkte ?? 0} Punkte</p>}
       {loesung && (
         <p className="text-xl">
           Richtig ist: <b>{loesung}</b>
         </p>
       )}
-      {!bewertet && <p className="text-xl">Deine Antwort ist gespeichert.</p>}
+      {!bewertet && !r.zuSpaet && <p className="text-xl">Deine Antwort ist gespeichert.</p>}
       <Knopf onClick={weiter} className="mt-2 !py-4 !text-2xl">
         {letzte ? 'Fertig' : 'Nächste Frage'}
       </Knopf>

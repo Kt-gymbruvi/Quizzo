@@ -199,7 +199,9 @@ export function useCountdown(restzeitMs: number | null | undefined, schluessel: 
       setEnde(null)
     } else if (letzterSchluessel.current !== schluessel) {
       letzterSchluessel.current = schluessel
-      setEnde(Date.now() + restzeitMs)
+      const jetzt = Date.now()
+      setJetzt(jetzt) // sonst zeigt die erste Anzeige mit einer alten Uhrzeit eine Sekunde zu viel
+      setEnde(jetzt + restzeitMs)
     }
   }, [restzeitMs, schluessel])
 

@@ -89,6 +89,21 @@ describe('Datenbank', () => {
     })
   })
 
+  describe('Quizze: Ordner und „zuletzt benutzt“ (Migration 008)', () => {
+    it('Lehrkraft legt eigene Quizze in Ordner, fremde nicht', async () => {
+      await als(db, A, 'update public.quizze set ordner = $1 where id = $2', ['Erdkunde 7b', quizId])
+      await als(db, B, 'update public.quizze set ordner = $1 where id = $2', ['Gehackt', quizId])
+      expect(await als(db, A, 'select ordner from public.quizze where id = $1', [quizId])).toEqual([{ ordner: 'Erdkunde 7b' }])
+      await expect(als(db, A, 'update public.quizze set ordner = $1 where id = $2', ['x'.repeat(61), quizId])).rejects.toThrow(/check/)
+      await als(db, A, 'update public.quizze set ordner = null where id = $1', [quizId])
+    })
+    it('Verteilen merkt sich „zuletzt benutzt“', async () => {
+      await rpc(db, A, 'aufgabe_erstellen', [quizId, 'selbstlernen', null, null])
+      const [q] = await als<{ zuletzt_benutzt: Date | null }>(db, A, 'select zuletzt_benutzt from public.quizze where id = $1', [quizId])
+      expect(q.zuletzt_benutzt).not.toBeNull()
+    })
+  })
+
   describe('Fragetypen: die Datenbank nimmt nur vollständige Fragen an', () => {
     const gueltig: F[] = [
       { typ: 'auswahl', text: 'Mehrere richtig', inhalt: { antworten: ['a', 'b', 'c', 'd', 'e', 'f'], richtig: [0, 5] } },
@@ -629,13 +644,13 @@ describe('Datenbank', () => {
         expect(await rpc(db, ANONYM, 'aufgabe_zustand', [fuchs.teilnehmer_id, '00000000-0000-4000-8000-000000000000'])).toBeNull()
       })
       it('jede Frage einmal, mit Ergebnis und Lösung; nach der letzten ist abgegeben', async () => {
-        expect(await antworten(auf.code, fuchs, 0, [1])).toEqual({ anteil: 1, punkte: 1000, abgegeben: false, loesung: [1] })
+        expect(await antworten(auf.code, fuchs, 0, [1])).toEqual({ anteil: 1, punkte: 1000, abgegeben: false, zu_spaet: false, loesung: [1] })
         await expect(antworten(auf.code, fuchs, 0, [1])).rejects.toThrow('schon beantwortet')
         expect(await antworten(auf.code, fuchs, 1, false)).toMatchObject({ anteil: 0, punkte: 0, loesung: true })
         expect(await antworten(auf.code, fuchs, 3, [0])).toMatchObject({ abgegeben: true }) // Folie (Nr. 2) zählt nicht
         const z = await rpc<Zustand>(db, ANONYM, 'aufgabe_zustand', [fuchs.teilnehmer_id, fuchs.token])
         expect(z).toMatchObject({ abgegeben: true, punkte: 1000 })
-        expect(z.antworten[0]).toEqual({ frage_nr: 0, anteil: 1, punkte: 1000, loesung: [1] })
+        expect(z.antworten[0]).toEqual({ frage_nr: 0, anteil: 1, punkte: 1000, zu_spaet: false, loesung: [1] })
         await expect(antworten(auf.code, null, 0, [1])).rejects.toThrow('nicht (mehr) bei dieser Aufgabe')
       })
       it('die Lehrkraft sieht Spitznamen und Punkte, aber keinen Schlüssel', async () => {
@@ -677,7 +692,7 @@ describe('Datenbank', () => {
         await expect(rpc(db, ANONYM, 'aufgabe_beitreten', [auf.code, codes[0]])).rejects.toThrow('anderen Gerät')
       })
       it('keine Lösung und kein Ergebnis für Schüler', async () => {
-        expect(await antworten(auf.code, b, 0, [0])).toEqual({ ok: true, abgegeben: false })
+        expect(await antworten(auf.code, b, 0, [0])).toEqual({ ok: true, abgegeben: false, zu_spaet: false })
         const z = await rpc<Zustand>(db, ANONYM, 'aufgabe_zustand', [b.teilnehmer_id, b.token])
         expect(z.punkte).toBeNull()
         expect(z.antworten).toEqual([{ frage_nr: 0 }])
@@ -695,6 +710,89 @@ describe('Datenbank', () => {
       })
     })
 
+    describe('Zeitlimit pro Frage (Hausaufgabe, Prüfung)', () => {
+      type Offen = { frage: { typ: string; text: string; zeitlimit: number }; restzeit_ms: number | null }
+      type ZZustand = Omit<Zustand, 'fragen'> & { mit_zeit: boolean; geoeffnet: { frage_nr: number; restzeit_ms: number }[]; fragen: { text: string; zeitlimit: number; verdeckt?: boolean }[] }
+      const oeffnen = (b: Beitritt, nr: number) => rpc<Offen>(db, ANONYM, 'aufgabe_frage_oeffnen', [b.teilnehmer_id, b.token, nr])
+      const zustand = (b: Beitritt) => rpc<ZZustand>(db, ANONYM, 'aufgabe_zustand', [b.teilnehmer_id, b.token])
+      const zurueckdrehen = (b: Beitritt, sekunden: number) =>
+        db.query(`update public.aufgabe_gestartet set gestartet_am = now() - make_interval(secs => $2) where teilnehmer_id = $1`, [b.teilnehmer_id, sekunden])
+
+      it('nur für Hausaufgabe und Prüfung, feste Zeit zwischen 10 und 600 Sekunden', async () => {
+        await expect(rpc(db, A, 'aufgabe_erstellen', [quizId, 'selbstlernen', null, null, 0])).rejects.toThrow('kein Zeitlimit')
+        await expect(rpc(db, A, 'aufgabe_erstellen', [quizId, 'hausaufgabe', inTagen(2), null, 5])).rejects.toThrow('10 Sekunden')
+        await expect(rpc(db, A, 'aufgabe_erstellen', [quizId, 'hausaufgabe', inTagen(2), null, 601])).rejects.toThrow('10 Minuten')
+        const ohne = await rpc<Erstellt>(db, A, 'aufgabe_erstellen', [quizId, 'hausaufgabe', inTagen(2), null])
+        const b = await rpc<Beitritt>(db, ANONYM, 'aufgabe_beitreten', [ohne.code, 'Ohne'])
+        const z = await zustand(b)
+        expect(z.mit_zeit).toBe(false)
+        expect(z.fragen.every((f) => !f.verdeckt && f.zeitlimit === 0 && f.text)).toBe(true)
+      })
+
+      it('Fragen sind verdeckt, bis man sie öffnet – Zeiten aus dem Quiz', async () => {
+        const auf = await rpc<Erstellt>(db, A, 'aufgabe_erstellen', [quizId, 'hausaufgabe', inTagen(2), null, 0])
+        const b = await rpc<Beitritt>(db, ANONYM, 'aufgabe_beitreten', [auf.code, 'Uhu'])
+        const z = await zustand(b)
+        expect(z.mit_zeit).toBe(true)
+        expect(z.fragen.map((f) => [f.text, f.zeitlimit, !!f.verdeckt])).toEqual([
+          ['', 20, true],
+          ['', 10, true],
+          ['Jetzt kommt eine Umfrage', 0, false], // Folien haben keine Zeit und sind nie verdeckt
+          ['', 20, true],
+        ])
+        expect(JSON.stringify(z.fragen)).not.toContain('Paris')
+        await expect(antworten(auf.code, b, 0, [1])).rejects.toThrow('zuerst')
+        const o = await oeffnen(b, 0)
+        expect(o.frage.text).toBe('Hauptstadt von Frankreich?')
+        expect(o.restzeit_ms).toBeGreaterThan(18_000)
+        expect(o.restzeit_ms).toBeLessThanOrEqual(20_000)
+        // nochmal öffnen (z. B. Neuladen) startet die Zeit nicht neu
+        await zurueckdrehen(b, 15)
+        expect((await oeffnen(b, 0)).restzeit_ms).toBeLessThanOrEqual(5_000)
+        const z2 = await zustand(b)
+        expect(z2.fragen[0]).toMatchObject({ text: 'Hauptstadt von Frankreich?' })
+        expect(z2.geoeffnet).toEqual([{ frage_nr: 0, restzeit_ms: expect.any(Number) }])
+        expect(await antworten(auf.code, b, 0, [1])).toMatchObject({ anteil: 1, punkte: 1000, zu_spaet: false })
+        expect((await zustand(b)).geoeffnet).toEqual([])
+        await expect(oeffnen(b, 0)).rejects.toThrow('schon beantwortet')
+      })
+
+      it('zu spät oder ohne Antwort: zählt als beantwortet, aber 0 Punkte', async () => {
+        const auf = await rpc<Erstellt>(db, A, 'aufgabe_erstellen', [quizId, 'hausaufgabe', inTagen(2), null, 30])
+        const b = await rpc<Beitritt>(db, ANONYM, 'aufgabe_beitreten', [auf.code, 'Spatz'])
+        expect((await oeffnen(b, 0)).restzeit_ms).toBeGreaterThan(28_000) // feste Zeit statt 20 s aus dem Quiz
+        await zurueckdrehen(b, 40) // über 30 s + Kulanz
+        expect((await oeffnen(b, 0)).restzeit_ms).toBe(0)
+        expect(await antworten(auf.code, b, 0, [1])).toMatchObject({ anteil: 0, punkte: 0, zu_spaet: true, loesung: [1] })
+        await oeffnen(b, 1)
+        expect(await antworten(auf.code, b, 1, null)).toMatchObject({ anteil: 0, punkte: 0, zu_spaet: true }) // Zeit abgelaufen
+        await oeffnen(b, 3)
+        expect(await antworten(auf.code, b, 3, [0])).toMatchObject({ abgegeben: true })
+        const e = await rpc<Ergebnis & { mit_zeit: boolean }>(db, A, 'aufgabe_ergebnisse', [auf.id])
+        expect(e.mit_zeit).toBe(true)
+        expect(e.teilnehmer[0].antworten).toEqual([
+          expect.objectContaining({ frage_nr: 0, anteil: 0, zu_spaet: true }),
+          expect.objectContaining({ frage_nr: 1, antwort: null, zu_spaet: true }),
+          expect.objectContaining({ frage_nr: 3, zu_spaet: false }),
+        ])
+      })
+
+      it('auch bei der Prüfung; Öffnen-Zeiten sind für niemanden direkt lesbar', async () => {
+        const auf = await rpc<Erstellt>(db, A, 'aufgabe_erstellen', [quizId, 'pruefung', inTagen(1), 1, 60])
+        const [{ code }] = await als<{ code: string }>(db, A, 'select code from public.aufgabe_teilnehmer where aufgabe_id = $1', [auf.id])
+        const b = await rpc<Beitritt>(db, ANONYM, 'aufgabe_beitreten', [auf.code, code])
+        await oeffnen(b, 0)
+        expect(await antworten(auf.code, b, 0, [1])).toEqual({ ok: true, abgegeben: false, zu_spaet: false })
+        await expect(als(db, ANONYM, 'select * from public.aufgabe_gestartet')).rejects.toThrow(/permission denied/)
+        await expect(als(db, A, 'select * from public.aufgabe_gestartet')).rejects.toThrow(/permission denied/)
+        await expect(rpc(db, ANONYM, 'aufgabe_frage_oeffnen', [b.teilnehmer_id, '00000000-0000-4000-8000-000000000000', 1])).rejects.toThrow('nicht (mehr)')
+        for (const f of ['aufgabe_restzeit', 'aufgabe_frage_schueler', 'aufgabe_fragen_teilnehmer', 'aufgabe_kulanz']) {
+          const [{ n }] = await als<{ n: boolean }>(db, A, `select has_function_privilege('anon', p.oid, 'execute') as n from pg_proc p where proname = $1`, [f])
+          expect(n).toBe(false)
+        }
+      })
+    })
+
     describe('Rechte und automatisches Löschen', () => {
       it('Schüler haben keinen Tabellenzugriff, fremde Lehrkräfte sehen nichts', async () => {
         for (const t of ['aufgaben', 'aufgabe_teilnehmer', 'aufgabe_antworten', 'aufgabe_statistik']) {
@@ -703,7 +801,7 @@ describe('Datenbank', () => {
         expect(await als(db, B, 'select id from public.aufgaben')).toEqual([])
         expect(await rpc(db, B, 'aufgaben_liste', [])).toEqual([])
         const liste = await rpc<{ modus: string }[]>(db, A, 'aufgaben_liste', [])
-        expect(liste.map((x) => x.modus).sort()).toEqual(['hausaufgabe', 'pruefung', 'selbstlernen'])
+        expect([...new Set(liste.map((x) => x.modus))].sort()).toEqual(['hausaufgabe', 'pruefung', 'selbstlernen'])
         for (const f of ['aufgaben_liste', 'aufgaben_aufraeumen', 'zufallscode']) {
           await expect(rpc(db, ANONYM, f, f === 'zufallscode' ? [6] : [])).rejects.toThrow(/permission denied/)
         }

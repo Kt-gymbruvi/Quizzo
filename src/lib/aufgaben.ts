@@ -36,13 +36,15 @@ export type AufgabeUebersicht = {
   frist: string | null
   loeschen_am: string | null
   offen: boolean
+  /** Zeitlimit pro Frage (Hausaufgabe/Prüfung) */
+  mit_zeit?: boolean
   teilnehmer: number
   abgegeben: number
   versuche: number
 }
 
-export type AufgabeFrage = { typ: FrageTyp; text: string; inhalt: Record<string, unknown>; punkte: number }
-export type AufgabeAntwort = { frage_nr: number; antwort: unknown; anteil: number; punkte: number }
+export type AufgabeFrage = { typ: FrageTyp; text: string; inhalt: Record<string, unknown>; punkte: number; zeitlimit?: number }
+export type AufgabeAntwort = { frage_nr: number; antwort: unknown; anteil: number; punkte: number; /** Zeitlimit überschritten */ zu_spaet?: boolean }
 export type AufgabeTeilnehmer = {
   id: string
   spitzname: string | null
@@ -74,11 +76,17 @@ export type AufgabeZustand = Omit<AufgabeInfo, 'fragen' | 'anzahl_fragen'> & {
   name: string
   abgegeben: boolean
   punkte: number | null
-  fragen: SchuelerFrage[]
+  /** Mit Zeitlimit sind noch nicht geöffnete Fragen verdeckt (`verdeckt: true`, ohne Text) */
+  fragen: AufgabenFrage[]
   /** Hausaufgabe: mit Ergebnis und Lösung; Prüfung: nur die Nummer */
-  antworten: { frage_nr: number; anteil?: number; punkte?: number; loesung?: unknown }[]
+  antworten: { frage_nr: number; anteil?: number; punkte?: number; loesung?: unknown; zu_spaet?: boolean }[]
+  /** Zeitlimit pro Frage */
+  mit_zeit?: boolean
+  /** geöffnete, noch nicht beantwortete Fragen mit Restzeit */
+  geoeffnet?: { frage_nr: number; restzeit_ms: number | null }[]
 }
-export type AufgabeRueckmeldung = { anteil?: number; punkte?: number; loesung?: unknown; abgegeben?: boolean; ok?: boolean }
+export type AufgabenFrage = SchuelerFrage & { verdeckt?: boolean }
+export type AufgabeRueckmeldung = { anteil?: number; punkte?: number; loesung?: unknown; abgegeben?: boolean; ok?: boolean; zu_spaet?: boolean }
 export type AufgabeTeilnahme = { teilnehmer_id: string; token: string; name: string }
 
 async function aufruf<T>(funktion: string, args: Record<string, unknown>): Promise<T> {
@@ -88,12 +96,15 @@ async function aufruf<T>(funktion: string, args: Record<string, unknown>): Promi
 }
 
 // --- Lehrkraft ---
-export const erstelleAufgabe = (quizId: string, modus: Aufgabenmodus, frist: Date | null, codes: number | null) =>
+/** zeit: null = ohne Zeitlimit, 0 = Zeiten aus dem Quiz, sonst feste Sekunden pro Frage (nur Hausaufgabe/Prüfung) */
+export const erstelleAufgabe = (quizId: string, modus: Aufgabenmodus, frist: Date | null, codes: number | null, zeit: number | null = null) =>
   aufruf<{ id: string; code: string }>('aufgabe_erstellen', {
     p_quiz_id: quizId,
     p_modus: modus,
     p_frist: frist ? frist.toISOString() : null,
     p_codes: modus === 'pruefung' ? codes : null,
+    // nur mitschicken, wenn gewählt – so klappt es auch mit einer Datenbank ohne Migration 008
+    ...(modus !== 'selbstlernen' && zeit !== null ? { p_zeit: zeit } : {}),
   })
 export const ladeAufgaben = () => aufruf<AufgabeUebersicht[]>('aufgaben_liste', {})
 export const ladeErgebnisse = (id: string) => aufruf<AufgabeErgebnis | null>('aufgabe_ergebnisse', { p_aufgabe: id })
@@ -109,6 +120,9 @@ export const oeffneAufgabe = (code: string) => aufruf<AufgabeInfo>('aufgabe_oeff
 export const trittAufgabeBei = (code: string, name: string) => aufruf<AufgabeTeilnahme>('aufgabe_beitreten', { p_code: code, p_name: name })
 export const ladeAufgabeZustand = (t: AufgabeTeilnahme) =>
   aufruf<AufgabeZustand | null>('aufgabe_zustand', { p_teilnehmer: t.teilnehmer_id, p_token: t.token })
+/** Frage öffnen (Aufgabe mit Zeitlimit): startet die Zeit beim ersten Mal, liefert Frage und Restzeit */
+export const oeffneFrage = (t: AufgabeTeilnahme, frageNr: number) =>
+  aufruf<{ frage: SchuelerFrage; restzeit_ms: number | null }>('aufgabe_frage_oeffnen', { p_teilnehmer: t.teilnehmer_id, p_token: t.token, p_frage_nr: frageNr })
 export const beantworte = (code: string, t: AufgabeTeilnahme | null, frageNr: number, antwort: unknown) =>
   aufruf<AufgabeRueckmeldung>('aufgabe_antworten', {
     p_code: code,
@@ -204,6 +218,8 @@ export function ergebnisCsv(e: AufgabeErgebnis): string {
       ...e.fragen.map((f, n) => {
         const a = t.antworten.find((x) => x.frage_nr === n)
         if (!a) return ''
+        if (a.zu_spaet && (a.antwort === null || a.antwort === undefined)) return 'Zeit abgelaufen'
+        if (a.zu_spaet) return `zu spät (${antwortAlsText(f, a.antwort)})`
         return FRAGETYPEN[f.typ].bewertet ? `${Math.round(a.anteil * 100)} % (${antwortAlsText(f, a.antwort)})` : antwortAlsText(f, a.antwort)
       }),
     ])

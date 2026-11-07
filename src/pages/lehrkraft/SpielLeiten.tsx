@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import QRCode from 'qrcode'
 import { Knopf, Meldung } from '../../components.tsx'
+import { Einpassen } from '../../einpassen.tsx'
 import { FRAGETYPEN } from '../../lib/fragetypen.ts'
 import { BeamerAuswertung, BeamerFrage, BeamerMedium } from '../../spiel/Beamer.tsx'
 import {
@@ -133,8 +134,9 @@ export default function SpielLeiten() {
   }
 
   return (
-    <main className="flex min-h-dvh flex-col gap-6 px-8 py-6 lg:px-12">
-      <header className="flex items-center justify-between gap-4">
+    // Genau eine Bildschirmhöhe: Einpassen verkleinert den Inhalt, statt dass gescrollt werden muss
+    <main className="flex h-dvh flex-col gap-4 overflow-hidden px-8 py-5 lg:px-12">
+      <header className="flex shrink-0 items-center justify-between gap-4">
         <div className="flex items-baseline gap-5">
           <span className="text-4xl font-black text-quizzo-yellow">Quizzo</span>
           <span className="text-2xl text-white/70">
@@ -154,12 +156,14 @@ export default function SpielLeiten() {
 
       {fehler && <Meldung art="fehler">{fehler}</Meldung>}
 
-      {z.status === 'lobby' && <Lobby z={z} beschaeftigt={beschaeftigt} starten={() => steuern('weiter')} entfernen={entfernen} teamWechseln={teamWechseln} />}
-      {z.status === 'frage' && <FrageAnsicht z={z} sekunden={sekunden} beschaeftigt={beschaeftigt} aufloesen={() => steuern('aufloesen')} weiter={() => steuern('weiter')} />}
-      {z.status === 'auswertung' && <Auswertung z={z} beschaeftigt={beschaeftigt} weiter={() => steuern('weiter')} />}
-      {z.status === 'ende' && (
-        <Endstand z={z} aktionen={<EndeAktionen beenden={() => beenden(true)} naechsteRunde={rundeStarten} runde={z.runde ?? 1} beschaeftigt={beschaeftigt} />} />
-      )}
+      <Einpassen key={`${z.status}-${z.frage_nr}`}>
+        {z.status === 'lobby' && <Lobby z={z} beschaeftigt={beschaeftigt} starten={() => steuern('weiter')} entfernen={entfernen} teamWechseln={teamWechseln} />}
+        {z.status === 'frage' && <FrageAnsicht z={z} sekunden={sekunden} beschaeftigt={beschaeftigt} aufloesen={() => steuern('aufloesen')} weiter={() => steuern('weiter')} />}
+        {z.status === 'auswertung' && <Auswertung z={z} beschaeftigt={beschaeftigt} weiter={() => steuern('weiter')} />}
+        {z.status === 'ende' && (
+          <Endstand z={z} aktionen={<EndeAktionen beenden={() => beenden(true)} naechsteRunde={rundeStarten} runde={z.runde ?? 1} beschaeftigt={beschaeftigt} />} />
+        )}
+      </Einpassen>
     </main>
   )
 }
@@ -507,8 +511,9 @@ function Endstand({ z, aktionen }: { z: LehrkraftZustand; aktionen: React.ReactN
         {stufe(dritter, 3, 'h-28')}
       </div>
       {z.spieler.length > 3 && (
-        <div className="w-full max-w-2xl">
-          <ol start={4} className="flex flex-col gap-2">
+        <div className="w-full max-w-4xl">
+          {/* Plätze 4–10 zweispaltig, damit der Endstand auf einen Bildschirm passt */}
+          <ol start={4} className="grid grid-flow-col grid-cols-2 grid-rows-4 gap-x-4 gap-y-2">
             {z.spieler.slice(3, 10).map((s, i) => (
               <li key={s.id} className="flex justify-between rounded-xl bg-quizzo-navy-light px-5 py-2 text-xl font-bold">
                 <span>

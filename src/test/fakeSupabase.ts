@@ -50,7 +50,7 @@ export function setzeFakeZurueck(session: unknown = null) {
 /** Baut eine verkettbare Abfrage (select/eq/not/order/single/delete), die am Ende `ergebnis` liefert. */
 export function abfrage(ergebnis: unknown) {
   const kette: any = {}
-  for (const m of ['select', 'eq', 'not', 'order', 'single', 'delete']) kette[m] = vi.fn(() => kette)
+  for (const m of ['select', 'eq', 'not', 'order', 'single', 'delete', 'update', 'in', 'is']) kette[m] = vi.fn(() => kette)
   kette.then = (ok: (v: unknown) => unknown, nok?: (e: unknown) => unknown) => Promise.resolve(ergebnis).then(ok, nok)
   return kette
 }

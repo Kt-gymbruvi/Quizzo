@@ -7,7 +7,7 @@ const datum = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle:
 const tag = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' })
 
 /** Liste der verteilten Aufgaben unter „Meine Quizze“. */
-export function AufgabenUebersicht({ neuLaden }: { neuLaden: number }) {
+export function AufgabenUebersicht({ neuLaden, leerHinweis = false }: { neuLaden: number; /** eigener Reiter: auch ohne Aufgaben etwas zeigen */ leerHinweis?: boolean }) {
   const [liste, setListe] = useState<AufgabeUebersicht[] | null>(null)
   const [fehler, setFehler] = useState<string | null>(null)
 
@@ -21,11 +21,18 @@ export function AufgabenUebersicht({ neuLaden }: { neuLaden: number }) {
   }, [neuLaden])
 
   if (fehler) return <p className="text-lg text-white/60">Aufgaben konnten nicht geladen werden: {fehler}</p>
-  if (!liste?.length) return null
+  if (liste === null) return leerHinweis ? <p className="text-2xl text-white/70">Aufgaben werden geladen …</p> : null
+  if (!liste.length)
+    return leerHinweis ? (
+      <div className="flex flex-col items-center gap-3 rounded-3xl border-3 border-dashed border-white/25 px-6 py-16 text-center">
+        <p className="text-3xl font-bold">Noch keine verteilten Aufgaben</p>
+        <p className="text-xl text-white/70">Unter „Meine Quizze“ kannst du ein Quiz mit „📝 Verteilen“ als Selbstlernen, Hausaufgabe oder Prüfung ausgeben.</p>
+      </div>
+    ) : null
 
   return (
     <section className="flex flex-col gap-4" aria-labelledby="aufgaben-titel">
-      <h2 id="aufgaben-titel" className="text-4xl font-extrabold">
+      <h2 id="aufgaben-titel" className={leerHinweis ? 'sr-only' : 'text-4xl font-extrabold'}>
         Verteilte Aufgaben
       </h2>
       <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -51,6 +58,7 @@ export function AufgabenUebersicht({ neuLaden }: { neuLaden: number }) {
                     ? `${a.versuche} ${a.versuche === 1 ? 'Antwort' : 'Antworten'} (anonym)`
                     : `${a.abgegeben} von ${a.teilnehmer} abgegeben`}
                   {a.frist && ` · bis ${datum.format(new Date(a.frist))}`}
+                  {a.mit_zeit && ' · ⏱ mit Zeitlimit'}
                 </span>
                 {a.loeschen_am && <span className="text-base text-white/55">wird am {tag.format(new Date(a.loeschen_am))} automatisch gelöscht</span>}
               </Link>

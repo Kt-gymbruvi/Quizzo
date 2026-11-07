@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Knopf, Logo, Meldung, ZurueckLink } from '../components.tsx'
 import { HandyAuswertung, HandyEingabe } from '../spiel/Handy.tsx'
+import { Einpassen } from '../einpassen.tsx'
 import {
   antworte,
   gemerkteTeilnahme,
@@ -284,9 +285,12 @@ function SchuelerSpiel({ teilnahme, verlassen }: { teilnahme: Teilnahme; verlass
 
   return (
     // Genau eine Bildschirmhöhe: alle Antworten auf einen Blick, ohne Scrollen
-    <main className="mx-auto flex h-dvh max-w-md flex-col gap-3 overflow-y-auto px-4 py-3">
+    <main className="mx-auto flex h-dvh max-w-md flex-col gap-3 overflow-hidden px-4 py-3">
       {kopf}
-      {inhalt}
+      {/* Zu viel Inhalt (lange Frage, viele Antworten) wird verkleinert statt abgeschnitten */}
+      <Einpassen key={`${z?.status}-${z?.frage_nr}`} minimum={0.6}>
+        {inhalt}
+      </Einpassen>
     </main>
   )
 }

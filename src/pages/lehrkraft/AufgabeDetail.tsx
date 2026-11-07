@@ -63,7 +63,7 @@ export default function AufgabeDetail() {
     if (!e || !window.confirm(`Aufgabe „${e.titel}“ samt allen Ergebnissen jetzt löschen? Das kann nicht rückgängig gemacht werden.`)) return
     try {
       await loescheAufgabe(e.id)
-      navigate('/leiten', { state: { hinweis: `Die Aufgabe „${e.titel}“ wurde gelöscht.` } })
+      navigate('/leiten?ansicht=aufgaben', { state: { hinweis: `Die Aufgabe „${e.titel}“ wurde gelöscht.` } })
     } catch (err) {
       setFehler(fehlerText(err))
     }
@@ -72,8 +72,8 @@ export default function AufgabeDetail() {
   const kopf = (
     <LehrkraftKopf
       links={
-        <Link to="/leiten" className="text-xl text-white/80 hover:text-quizzo-yellow print:hidden">
-          ← Meine Quizze
+        <Link to="/leiten?ansicht=aufgaben" className="text-xl text-white/80 hover:text-quizzo-yellow print:hidden">
+          ← Verteilte Aufgaben
         </Link>
       }
     />
@@ -106,6 +106,7 @@ export default function AufgabeDetail() {
           <h2 className="text-5xl font-extrabold break-words">{e.titel}</h2>
           <p className="mt-2 text-xl text-white/75">
             {e.frist ? `${e.modus === 'pruefung' ? 'Ende' : 'Abgabe bis'}: ${datum.format(new Date(e.frist))}` : 'Ohne Frist – läuft, bis du sie beendest'}
+            {e.mit_zeit && ' · ⏱ mit Zeitlimit pro Frage'}
           </p>
           <p className="text-lg text-white/60">
             🔒 {e.loeschen_am ? `Alle Ergebnisse werden am ${tag.format(new Date(e.loeschen_am))} automatisch gelöscht.` : info.datenschutz}
@@ -225,8 +226,9 @@ function Balken({ anteil }: { anteil: number }) {
   )
 }
 
-function zeichen(anteil: number | undefined) {
+function zeichen(anteil: number | undefined, zuSpaet?: boolean) {
   if (anteil === undefined) return { z: '–', titel: 'nicht beantwortet', stil: 'text-white/30' }
+  if (zuSpaet) return { z: '⏱', titel: 'Zeit abgelaufen', stil: 'text-red-400' }
   if (anteil >= 1) return { z: '✓', titel: 'richtig', stil: 'text-green-400' }
   if (anteil > 0) return { z: '◐', titel: 'teilweise richtig', stil: 'text-amber-400' }
   return { z: '✗', titel: 'falsch', stil: 'text-red-400' }
@@ -281,7 +283,8 @@ function Uebersicht({ e, max }: { e: AufgabeErgebnis; max: number }) {
                         </td>
                       )
                     }
-                    const z = zeichen(t.antworten.find((a) => a.frage_nr === n)?.anteil)
+                    const antwort = t.antworten.find((a) => a.frage_nr === n)
+                    const z = zeichen(antwort?.anteil, antwort?.zu_spaet)
                     return (
                       <td key={n} className={`px-1 py-2 text-center text-2xl font-black ${z.stil}`} title={z.titel}>
                         {z.z}
@@ -327,7 +330,7 @@ function Antworten({ e, t }: { e: AufgabeErgebnis; t: AufgabeTeilnehmer }) {
       {e.fragen.map((f, n) => {
         if (f.typ === 'folie') return null
         const a = t.antworten.find((x) => x.frage_nr === n)
-        const z = FRAGETYPEN[f.typ].bewertet ? zeichen(a?.anteil) : null
+        const z = FRAGETYPEN[f.typ].bewertet || a?.zu_spaet ? zeichen(a?.anteil, a?.zu_spaet) : null
         return (
           <li key={n} className="grid grid-cols-[2rem_1fr] gap-2">
             <span className="text-white/50">{n + 1}.</span>
@@ -338,6 +341,7 @@ function Antworten({ e, t }: { e: AufgabeErgebnis; t: AufgabeTeilnehmer }) {
                 <>
                   {z && <b className={z.stil}>{z.z} </b>}
                   <span className="font-semibold whitespace-pre-wrap">{antwortAlsText(f, a.antwort)}</span>
+                  {a.zu_spaet && <span className="text-red-300"> {a.antwort === null ? 'Zeit abgelaufen' : '(zu spät)'}</span>}
                   {a.punkte > 0 && <span className="text-white/60"> · {a.punkte} Punkte</span>}
                 </>
               ) : (

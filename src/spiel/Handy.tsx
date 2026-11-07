@@ -16,7 +16,7 @@ function AntwortKnopf({ i, children, onClick, gewaehlt, klein }: { i: number; ch
     <button
       onClick={onClick}
       aria-pressed={gewaehlt}
-      className={`flex h-full min-h-0 items-center gap-3 overflow-hidden rounded-2xl px-3 py-2 text-left font-bold leading-tight text-white ${klein ? 'text-lg' : 'text-2xl'} ${druckKnopf} ${
+      className={`flex h-full items-center gap-3 rounded-2xl px-3 py-2 text-left font-bold leading-tight text-white ${klein ? 'text-lg' : 'text-2xl'} ${druckKnopf} ${
         ANTWORT_STIL[i].farbe
       } ${gewaehlt === false ? 'opacity-50' : ''} ${gewaehlt ? 'ring-4 ring-white' : ''}`}
     >
@@ -28,21 +28,23 @@ function AntwortKnopf({ i, children, onClick, gewaehlt, klein }: { i: number; ch
   )
 }
 
-/** Raster für Antwortknöpfe: füllt den freien Platz, ab 5 Antworten zweispaltig – nie scrollen. */
-function AntwortRaster({ anzahl, children }: { anzahl: number; children: ReactNode }) {
-  const spalten = anzahl > 4 ? 2 : 1
+/** Antworten kurz genug für zwei Spalten? (lange Texte bekommen die volle Breite) */
+const zweispaltig = (antworten: string[]) => antworten.length > 4 && antworten.every((a) => a.length <= 18)
+
+/** Raster für Antwortknöpfe: füllt den freien Platz; zu viel Inhalt verkleinert <Einpassen> – nie abschneiden. */
+function AntwortRaster({ anzahl, spalten, children }: { anzahl: number; spalten: number; children: ReactNode }) {
   return (
     <div
-      className="grid min-h-0 flex-1 gap-2"
-      style={{ gridTemplateColumns: `repeat(${spalten}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${Math.ceil(anzahl / spalten)}, minmax(0, 1fr))` }}
+      className="grid flex-1 gap-2"
+      style={{ gridTemplateColumns: `repeat(${spalten}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${Math.ceil(anzahl / spalten)}, minmax(min-content, 1fr))` }}
     >
       {children}
     </div>
   )
 }
 
-/** Gleich hohe Zeilen, die zusammen den freien Platz füllen. */
-const zeilenRaster = (n: number) => ({ gridTemplateRows: `repeat(${n}, minmax(0, 1fr))` })
+/** Gleich hohe Zeilen, die zusammen den freien Platz füllen (nie kleiner als ihr Inhalt). */
+const zeilenRaster = (n: number) => ({ gridTemplateRows: `repeat(${n}, minmax(min-content, 1fr))` })
 
 function Senden({ onClick, disabled, children = 'Antwort senden' }: { onClick: () => void; disabled?: boolean; children?: ReactNode }) {
   return (
@@ -93,7 +95,7 @@ export function HandyEingabe({ frage, senden }: { frage: SchuelerFrage; senden: 
 
 function Einfach({ antworten, senden }: { antworten: string[]; senden: (a: unknown) => void }) {
   return (
-    <AntwortRaster anzahl={antworten.length}>
+    <AntwortRaster anzahl={antworten.length} spalten={zweispaltig(antworten) ? 2 : 1}>
       {antworten.map((a, i) => (
         <AntwortKnopf key={i} i={i} klein={antworten.length > 4} onClick={() => senden([i])}>
           {a}
@@ -109,7 +111,7 @@ function Mehrfach({ antworten, senden }: { antworten: string[]; senden: (a: unkn
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <p className="shrink-0 text-center text-base font-bold text-quizzo-yellow">Wähle alle richtigen Antworten!</p>
-      <AntwortRaster anzahl={antworten.length}>
+      <AntwortRaster anzahl={antworten.length} spalten={zweispaltig(antworten) ? 2 : 1}>
         {antworten.map((a, i) => (
           <AntwortKnopf key={i} i={i} klein={antworten.length > 4} onClick={() => umschalten(i)} gewaehlt={gewaehlt.includes(i)}>
             {a}
@@ -157,9 +159,9 @@ function Sortieren({ elemente, senden }: { elemente: string[]; senden: (a: unkno
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <p className="shrink-0 text-center text-base text-white/80">Mit ↑ ↓ in die richtige Reihenfolge bringen.</p>
-      <ol className="grid min-h-0 flex-1 gap-2" style={zeilenRaster(liste.length)}>
+      <ol className="grid flex-1 gap-2" style={zeilenRaster(liste.length)}>
         {liste.map((e, i) => (
-          <li key={e} className="flex min-h-0 items-center gap-2 overflow-hidden rounded-2xl bg-white px-3 py-1 text-xl font-bold leading-tight text-quizzo-navy">
+          <li key={e} className="flex items-center gap-2 rounded-2xl bg-white px-3 py-1 text-xl font-bold leading-tight text-quizzo-navy">
             <span className="w-6 shrink-0 text-quizzo-navy/50">{i + 1}.</span>
             <span className="min-w-0 flex-1 break-words">{e}</span>
             <button onClick={() => tausche(i, i - 1)} disabled={i === 0} aria-label={`${e} nach oben`} className="h-full max-h-12 w-12 shrink-0 rounded-xl bg-quizzo-navy/10 text-2xl disabled:opacity-20">
@@ -183,9 +185,9 @@ function Zuordnen({ links, rechts, senden }: { links: string[]; rechts: string[]
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <p className="shrink-0 text-center text-base text-white/80">Wähle zu jedem Begriff das passende Gegenstück.</p>
-      <div className="grid min-h-0 flex-1 gap-2" style={zeilenRaster(links.length)}>
+      <div className="grid flex-1 gap-2" style={zeilenRaster(links.length)}>
         {links.map((l, i) => (
-          <label key={l} className="grid min-h-0 grid-cols-2 items-center gap-2 overflow-hidden rounded-2xl bg-white/10 px-3 py-1">
+          <label key={l} className="grid grid-cols-2 items-center gap-2 rounded-2xl bg-white/10 px-3 py-1">
             <span className="min-w-0 break-words text-lg font-bold leading-tight">{l}</span>
             <select
               value={wahl[i]}
@@ -302,7 +304,7 @@ export function HandyAuswertung({ z }: { z: SchuelerZustand }) {
   const eigenesTeam = z.teams?.find((t) => t.team === z.team)
 
   return (
-    <div className={`-mx-4 flex flex-1 flex-col items-center justify-center gap-4 rounded-3xl px-5 py-6 text-center ${farbe}`}>
+    <div className={`flex flex-1 flex-col items-center justify-center gap-4 rounded-3xl px-5 py-6 text-center ${farbe}`}>
       <p className="text-5xl font-black">{titel}</p>
       {bewertet && m && (m.punkte ?? 0) > 0 && <p className="text-4xl font-black">+{m.punkte}</p>}
       {frage?.typ === 'zuordnung' && m && anteil < 1 && <p className="text-xl">{Math.round(anteil * (frage.ansicht.links?.length ?? 0))} von {frage.ansicht.links?.length} Paaren richtig</p>}

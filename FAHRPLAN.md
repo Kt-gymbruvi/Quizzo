@@ -7,6 +7,13 @@ Stand: November 2026. ✅ = fertig, 🔨 = in Arbeit, ⏳ = geplant
 - ✅ Etappe 2: Lehrkraft-Login (nur eingeladen), Quizze anlegen/bearbeiten
 - ✅ Etappe 3: Live-Spiel (PIN, Lobby, Countdown, Auswertung, Endstand, Daten löschen)
 - ✅ Etappe 4: neun Fragetypen, Import/Export, Wieder-Einsteigen nach „Zurück“, Handy-Ansicht ohne Scrollen
+- 🔨 Etappe 9 (fertig, noch nicht veröffentlicht – SQL `008` nötig):
+  - Beamer (iPad quer) und Handy ohne Scrollen: Inhalt wird automatisch verkleinert, wenn er nicht passt
+    (Lobby, Frage, Auswertung, Endstand; Handy auch bei langen Antworten, in Aufgaben und in der Wiederholung)
+  - „Meine Quizze“ neu: Ordner (Spalte links), Suche, Sortierung (zuletzt bearbeitet / zuletzt gespielt / Name),
+    kompakte Zeilen mit „▶ Spielen“, „📝 Verteilen“ und „⋯“-Menü; verteilte Aufgaben in eigenem Reiter
+  - Zeitlimit pro Frage bei Hausaufgabe und Prüfung (feste Zeit oder Zeiten aus dem Quiz); Fragen werden erst
+    beim Öffnen übertragen, zu spät = 0 Punkte, die Lehrkraft sieht ⏱ in den Ergebnissen
 
 ## Frageneditor (Etappe 4 ✅ veröffentlicht · Etappe 5 Medien ✅ veröffentlicht)
 | Nr. | Fragetyp | Interner Name | Punkte | Etappe |
@@ -43,6 +50,7 @@ Außerdem in Etappe 4: Punkte pro Frage (keine/normal/doppelt), Quiz importieren
 - ✅ Prüfung – Etappe 8, veröffentlicht: 1–60 Pseudonym-Codes zum Ausdrucken (Name nur auf Papier),
   keine Lösungen auf dem Handy, Codes bei Gerätewechsel freigeben; Löschung spätestens nach 30 Tagen
   (Ideen für später: Fragen in zufälliger Reihenfolge, Medien auf dem Handy erlauben, Frist verlängern)
+- 🔨 Zeitlimit pro Frage für Hausaufgabe und Prüfung – Etappe 9 (gegen Nachschlagen/KI-Hilfe; verhindert sie nicht ganz)
 - ✅ Turnier – Etappe 7, veröffentlicht: nach dem Endstand „Runde 2 mit anderem Quiz“,
   dieselben Mitspielenden und Teams, Punkte laufen weiter, Antworten der Vorrunde werden gelöscht
 - ✅ Wiederholung – Etappe 7, veröffentlicht: falsch beantwortete Fragen merkt sich nur das
