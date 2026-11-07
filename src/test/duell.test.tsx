@@ -43,7 +43,7 @@ describe('Klassen-Duell: Logik', () => {
   })
 
   it('Adresse hin und zurück, ungültige Angaben werden abgefangen', () => {
-    const e = { quizIds: [ID1, ID2], teams: 3, zeilen: 4, zufall: true, abzug: false }
+    const e = { quizIds: [ID1, ID2], teams: 3, zeilen: 4, zufall: true, abzug: false, buzzer: true }
     expect(ausAdresse(new URLSearchParams(alsAdresse(e).split('?')[1]))).toEqual(e)
     expect(ausAdresse(new URLSearchParams(`q=${ID1}`))).toBeNull() // nur eine Kategorie
     expect(ausAdresse(new URLSearchParams(`q=${ID1},${ID2}&t=9&z=1`))).toMatchObject({ teams: 2, zeilen: 5 })
@@ -139,11 +139,11 @@ describe('Klassen-Duell: Oberfläche', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: '3 Fragen pro Kategorie' }))
     await userEvent.click(within(dialog).getByLabelText(/Falsche Antworten kosten Punkte/))
     await userEvent.click(within(dialog).getByRole('button', { name: 'Duell starten' }))
-    expect(screen.getByTestId('adresse')).toHaveTextContent(`/leiten/duell?q=${ID2}%2C${ID1}&t=3&z=3&r=0&a=1`)
+    expect(screen.getByTestId('adresse')).toHaveTextContent(`/leiten/duell?q=${ID2}%2C${ID1}&t=3&z=3&r=0&a=1&b=0`)
   })
 
   it('Brett: Feld öffnen, Lösung zeigen, Punkte vergeben – Stand bleibt nach dem Neuladen', async () => {
-    const adresse = alsAdresse({ quizIds: [ID1, ID2], teams: 2, zeilen: 3, zufall: false, abzug: true })
+    const adresse = alsAdresse({ quizIds: [ID1, ID2], teams: 2, zeilen: 3, zufall: false, abzug: true, buzzer: false })
     const { unmount } = renderApp(adresse)
     expect(await screen.findByRole('heading', { name: 'Erdkunde' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Biologie' })).toBeInTheDocument()
@@ -154,7 +154,7 @@ describe('Klassen-Duell: Oberfläche', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Erdkunde für 200' }))
     expect(screen.getByRole('heading', { name: 'Der Rhein fließt durch Paris.' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Lösung zeigen' }))
-    expect(screen.getByRole('status')).toHaveTextContent('Falsch')
+    expect(screen.getByLabelText('Lösung')).toHaveTextContent('Falsch')
     // Team Blau liegt falsch (−200), Team Rot richtig (+200)
     await userEvent.click(screen.getByRole('button', { name: 'Team Blau falsch, minus 200' }))
     expect(screen.getByRole('button', { name: '✓ Team Blau +200' })).toBeDisabled()
@@ -180,7 +180,7 @@ describe('Klassen-Duell: Oberfläche', () => {
   })
 
   it('Endstand nach dem letzten Feld', async () => {
-    renderApp(alsAdresse({ quizIds: [ID1, ID2], teams: 2, zeilen: 3, zufall: false, abzug: false }))
+    renderApp(alsAdresse({ quizIds: [ID1, ID2], teams: 2, zeilen: 3, zufall: false, abzug: false, buzzer: false }))
     await screen.findByRole('heading', { name: 'Erdkunde' })
     for (const name of ['Erdkunde für 100', 'Erdkunde für 200', 'Erdkunde für 300', 'Biologie für 100', 'Biologie für 200']) {
       await userEvent.click(screen.getByRole('button', { name }))

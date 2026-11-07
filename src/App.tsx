@@ -8,6 +8,7 @@ import SpielLeiten from './pages/lehrkraft/SpielLeiten.tsx'
 import Mitspielen from './pages/Mitspielen.tsx'
 import Wiederholen from './pages/Wiederholen.tsx'
 import Aufgabe from './pages/Aufgabe.tsx'
+import Buzzer from './pages/Buzzer.tsx'
 import AufgabeDetail from './pages/lehrkraft/AufgabeDetail.tsx'
 import Duell from './pages/lehrkraft/Duell.tsx'
 
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="/passwort" element={<Passwort />} />
         <Route path="/mitspielen" element={<Mitspielen />} />
         <Route path="/wiederholen" element={<Wiederholen />} />
+        <Route path="/buzzer" element={<Buzzer />} />
         <Route path="/aufgabe" element={<Aufgabe />} />
         <Route path="/aufgabe/:code" element={<Aufgabe />} />
         <Route path="*" element={<Startseite />} />

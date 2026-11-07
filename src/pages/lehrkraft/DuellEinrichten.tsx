@@ -19,6 +19,7 @@ export function DuellEinrichten({
   const [zeilen, setZeilen] = useState(5)
   const [zufall, setZufall] = useState(false)
   const [abzug, setAbzug] = useState(false)
+  const [buzzer, setBuzzer] = useState(false)
   const dialog = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
@@ -42,7 +43,7 @@ export function DuellEinrichten({
         className="flex flex-col gap-6"
         onSubmit={(e) => {
           e.preventDefault()
-          starten({ teams, zeilen, zufall, abzug })
+          starten({ teams, zeilen, zufall, abzug, buzzer })
         }}
       >
         <div>
@@ -87,6 +88,9 @@ export function DuellEinrichten({
           </Schalter>
           <Schalter an={abzug} umschalten={() => setAbzug((a) => !a)}>
             Falsche Antworten kosten Punkte <span className="text-white/60">(dann darf ein anderes Team antworten)</span>
+          </Schalter>
+          <Schalter an={buzzer} umschalten={() => setBuzzer((b) => !b)}>
+            📱 Buzzer: ein Handy pro Team <span className="text-white/60">(wer zuerst drückt, darf antworten – ohne Buzzer meldet ihr euch einfach)</span>
           </Schalter>
           <p className="text-base text-white/60">
             Leichte Fragen kommen auf die niedrigen Felder, schwere auf die hohen (Schwierigkeit im Frageneditor; ohne Angabe = mittel). Umfragen,

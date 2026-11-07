@@ -20,11 +20,13 @@ export type DuellEinstellung = {
   zufall: boolean
   /** Falsche Antworten kosten Punkte */
   abzug: boolean
+  /** Ein Handy pro Team als Buzzer (wählbar) */
+  buzzer: boolean
 }
 
 /** Einstellung ↔ Adresse (…/leiten/duell?q=a,b&t=2&z=5&r=0&a=0) – so lässt sich ein Duell auch als Lesezeichen speichern */
 export function alsAdresse(e: DuellEinstellung) {
-  const p = new URLSearchParams({ q: e.quizIds.join(','), t: String(e.teams), z: String(e.zeilen), r: e.zufall ? '1' : '0', a: e.abzug ? '1' : '0' })
+  const p = new URLSearchParams({ q: e.quizIds.join(','), t: String(e.teams), z: String(e.zeilen), r: e.zufall ? '1' : '0', a: e.abzug ? '1' : '0', b: e.buzzer ? '1' : '0' })
   return `/leiten/duell?${p}`
 }
 export function ausAdresse(p: URLSearchParams): DuellEinstellung | null {
@@ -34,7 +36,7 @@ export function ausAdresse(p: URLSearchParams): DuellEinstellung | null {
     return Number.isInteger(n) && n >= min && n <= max ? n : std
   }
   if (quizIds.length < MIN_KATEGORIEN || quizIds.length > MAX_KATEGORIEN) return null
-  return { quizIds, teams: zahl('t', 2, MAX_TEAMS, 2), zeilen: zahl('z', 3, 5, 5), zufall: p.get('r') === '1', abzug: p.get('a') === '1' }
+  return { quizIds, teams: zahl('t', 2, MAX_TEAMS, 2), zeilen: zahl('z', 3, 5, 5), zufall: p.get('r') === '1', abzug: p.get('a') === '1', buzzer: p.get('b') === '1' }
 }
 
 /** Nur Fragen mit richtiger Lösung taugen fürs Duell (keine Umfrage, Wortwolke, offene Frage, Folie) */
@@ -75,6 +77,8 @@ export type Spielstand = {
   teams: { name: string; punkte: number }[]
   /** erledigte Felder: Team-Index des Gewinners oder null (niemand) */
   felder: Record<string, number | null>
+  /** PIN für die Buzzer-Handys (nur wenn Buzzer gewählt) */
+  pin?: string
 }
 
 export function neuerStand(schluessel: string, auswahl: number[][], teamNamen: string[]): Spielstand {

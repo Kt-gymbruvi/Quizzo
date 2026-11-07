@@ -119,6 +119,9 @@ function Beitreten({ beigetreten }: { beigetreten: (t: Teilnahme) => void }) {
         <Link to="/aufgabe" className="text-center text-lg text-white/75 underline underline-offset-4">
           Du hast einen Aufgaben-Code (mit Buchstaben)? Hier öffnen
         </Link>
+        <Link to="/buzzer" className="text-center text-lg text-white/75 underline underline-offset-4">
+          🔔 Buzzer fürs Klassen-Duell
+        </Link>
       </form>
     </main>
   )

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import QRCode from 'qrcode'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Knopf, Meldung } from '../../components.tsx'
 import { Einpassen } from '../../einpassen.tsx'
@@ -23,6 +24,7 @@ import {
 import { ladeQuiz } from '../../lib/quizze.ts'
 import { fehlerText } from '../../lib/supabase.ts'
 import { TEAMS } from '../../lib/teams.ts'
+import { buzzerLink, neuerBuzzerPin, useBuzzerLehrkraft, type BuzzerZustand } from '../../lib/buzzer.ts'
 
 // Klassen-Duell (Jeopardy-Stil) am Beamer: Brett mit Kategorien und Punktefeldern, Teams ohne Handys.
 // Der Spielstand bleibt nur auf diesem Gerät (localStorage); auf dem Server wird nichts gespeichert.
@@ -40,6 +42,10 @@ export default function Duell() {
   const [verlauf, setVerlauf] = useState<Spielstand[]>([]) // für „Rückgängig“
   const [offen, setOffen] = useState<{ k: number; z: number } | null>(null)
   const [ende, setEnde] = useState(false)
+  // Buzzer (nur wenn gewählt): wer gerade dran ist, wer bei dieser Frage schon falsch lag, Freigabe-Runde
+  const [dran, setDran] = useState<number | null>(null)
+  const [gesperrt, setGesperrt] = useState<number[]>([])
+  const [runde, setRunde] = useState(0)
 
   // Quizze laden und Brett aufbauen (oder gespeicherten Stand fortsetzen)
   useEffect(() => {
@@ -79,6 +85,39 @@ export default function Duell() {
     [stand],
   )
 
+  // Buzzer-PIN einmal pro Duell anlegen (bleibt mit dem Spielstand auf dem Gerät)
+  useEffect(() => {
+    if (einstellung?.buzzer && stand && !stand.pin) setStandRoh({ ...stand, pin: neuerBuzzerPin() })
+  }, [einstellung, stand])
+
+  const buzzerZustand = useMemo<BuzzerZustand | null>(
+    () =>
+      stand && kategorien
+        ? {
+            offen: !!offen && dran === null,
+            runde,
+            // ohne offene Frage ist niemand dran und niemand gesperrt
+            dran: offen ? dran : null,
+            gesperrt: offen ? gesperrt : [],
+            frage: offen ? `${kategorien[offen.k].titel} · ${wertVon(offen.z)}` : null,
+            teams: stand.teams,
+          }
+        : null,
+    [stand, kategorien, offen, dran, gesperrt, runde],
+  )
+  const { verbunden } = useBuzzerLehrkraft(einstellung?.buzzer ? (stand?.pin ?? null) : null, buzzerZustand, (team) => setDran(team))
+
+  function feldOeffnen(k: number, z: number) {
+    setDran(null)
+    setGesperrt([])
+    setRunde((x) => x + 1)
+    setOffen({ k, z })
+  }
+  function buzzerFreigeben() {
+    setDran(null)
+    setRunde((x) => x + 1)
+  }
+
   function rueckgaengig() {
     const letzter = verlauf[verlauf.length - 1]
     if (!letzter) return
@@ -97,6 +136,7 @@ export default function Duell() {
         stand.teams.map((t) => t.name),
       ),
     )
+    if (stand.pin) setStandRoh((s2) => (s2 ? { ...s2, pin: stand.pin } : s2))
     setEnde(false)
     setOffen(null)
   }
@@ -164,7 +204,7 @@ export default function Duell() {
         </div>
       </header>
 
-      <Punktestand stand={stand} umbenennen={offen ? undefined : umbenennen} />
+      <Punktestand stand={stand} umbenennen={offen ? undefined : umbenennen} handys={einstellung.buzzer ? verbunden : undefined} />
 
       <Einpassen key={offen ? `f-${offen.k}-${offen.z}` : fertig ? 'ende' : 'brett'}>
         {fertig ? (
@@ -176,19 +216,31 @@ export default function Duell() {
             wert={wertVon(offen.z)}
             stand={stand}
             abzug={einstellung.abzug}
+            buzzer={einstellung.buzzer ? { dran, freigeben: buzzerFreigeben } : undefined}
+            gesperrt={gesperrt}
             zurueck={() => setOffen(null)}
             richtig={(team) => {
               aendere(schliesseFeld(punkte(stand, team, wertVon(offen.z)), feldSchluessel(offen.k, offen.z), team))
               setOffen(null)
             }}
-            falsch={(team) => aendere(punkte(stand, team, -wertVon(offen.z)))}
+            falsch={(team) => {
+              aendere(punkte(stand, team, -wertVon(offen.z)))
+              setGesperrt((g) => [...g, team])
+              buzzerFreigeben() // ein anderes Team darf buzzern
+            }}
             niemand={() => {
               aendere(schliesseFeld(stand, feldSchluessel(offen.k, offen.z), null))
               setOffen(null)
             }}
           />
         ) : (
-          <Brett kategorien={kategorien} stand={stand} oeffnen={(k, z) => setOffen({ k, z })} hinweis={leereKategorien} />
+          <Brett
+            kategorien={kategorien}
+            stand={stand}
+            oeffnen={feldOeffnen}
+            hinweis={leereKategorien}
+            buzzer={einstellung.buzzer && stand.pin ? <BuzzerHinweis pin={stand.pin} verbunden={verbunden.length} teams={stand.teams.length} /> : undefined}
+          />
         )}
       </Einpassen>
     </main>
@@ -199,7 +251,7 @@ function Rahmen({ children }: { children: React.ReactNode }) {
   return <main className="flex min-h-dvh flex-col items-center justify-center gap-6 px-8 text-center">{children}</main>
 }
 
-function Punktestand({ stand, umbenennen }: { stand: Spielstand; umbenennen?: (i: number) => void }) {
+function Punktestand({ stand, umbenennen, handys }: { stand: Spielstand; umbenennen?: (i: number) => void; handys?: number[] }) {
   return (
     <ol className="flex shrink-0 flex-wrap justify-center gap-3" aria-label="Punktestand">
       {stand.teams.map((t, i) => (
@@ -213,6 +265,11 @@ function Punktestand({ stand, umbenennen }: { stand: Spielstand; umbenennen?: (i
           >
             <span aria-hidden="true">{teamStil(i).zeichen}</span>
             <span>{t.name}</span>
+            {handys && (
+              <span className={handys.includes(i) ? '' : 'opacity-30'} aria-label={handys.includes(i) ? 'Buzzer-Handy verbunden' : 'kein Buzzer-Handy'} title={handys.includes(i) ? 'Buzzer-Handy verbunden' : 'kein Buzzer-Handy'}>
+                📱
+              </span>
+            )}
             <span className="rounded-xl bg-black/25 px-3 py-0.5 tabular-nums">{t.punkte}</span>
           </button>
         </li>
@@ -221,7 +278,19 @@ function Punktestand({ stand, umbenennen }: { stand: Spielstand; umbenennen?: (i
   )
 }
 
-function Brett({ kategorien, stand, oeffnen, hinweis }: { kategorien: Kategorie[]; stand: Spielstand; oeffnen: (k: number, z: number) => void; hinweis: string[] }) {
+function Brett({
+  kategorien,
+  stand,
+  oeffnen,
+  hinweis,
+  buzzer,
+}: {
+  kategorien: Kategorie[]
+  stand: Spielstand
+  oeffnen: (k: number, z: number) => void
+  hinweis: string[]
+  buzzer?: React.ReactNode
+}) {
   const zeilen = Math.max(...stand.auswahl.map((a) => a.length), 0)
   return (
     <div className="flex flex-1 flex-col gap-3">
@@ -261,6 +330,7 @@ function Brett({ kategorien, stand, oeffnen, hinweis }: { kategorien: Kategorie[
           }),
         )}
       </div>
+      {buzzer}
       {hinweis.length > 0 && (
         <p className="text-center text-lg text-white/60">
           Keine passenden Fragen in: {hinweis.join(', ')} (nur Umfragen, Wortwolken, offene Fragen oder Folien).
@@ -276,6 +346,8 @@ function FrageFeld({
   wert,
   stand,
   abzug,
+  buzzer,
+  gesperrt,
   zurueck,
   richtig,
   falsch,
@@ -286,6 +358,10 @@ function FrageFeld({
   wert: number
   stand: Spielstand
   abzug: boolean
+  /** Buzzer gewählt: wer zuerst gebuzzert hat; freigeben = wieder für alle (nicht gesperrten) Teams öffnen */
+  buzzer?: { dran: number | null; freigeben: () => void }
+  /** Teams, die bei dieser Frage schon falsch lagen */
+  gesperrt: number[]
   zurueck: () => void
   richtig: (team: number) => void
   falsch: (team: number) => void
@@ -293,7 +369,6 @@ function FrageFeld({
 }) {
   const beamer = useMemo(() => alsBeamerFrage(frage), [frage])
   const [loesung, setLoesung] = useState(false)
-  const [versucht, setVersucht] = useState<number[]>([]) // Teams, die schon falsch lagen
   const [rest, setRest] = useState<number | null>(null)
 
   useEffect(() => {
@@ -343,8 +418,31 @@ function FrageFeld({
         <BeamerFrage frage={beamer} />
       )}
 
+      {buzzer && (
+        <div
+          role="status"
+          aria-live="assertive"
+          className={`flex flex-wrap items-center justify-center gap-4 rounded-3xl px-6 py-4 text-center text-3xl font-black ${
+            buzzer.dran === null ? 'bg-white/10 text-white/85' : `${teamStil(buzzer.dran).farbe} text-white`
+          }`}
+        >
+          {buzzer.dran === null ? (
+            <span>🔔 Buzzer sind offen – welches Team drückt zuerst?</span>
+          ) : (
+            <>
+              <span>
+                🔔 {teamStil(buzzer.dran).zeichen} {stand.teams[buzzer.dran].name} ist dran!
+              </span>
+              <Knopf art="leise" onClick={buzzer.freigeben} className="!py-2 !text-lg">
+                Buzzer wieder freigeben
+              </Knopf>
+            </>
+          )}
+        </div>
+      )}
+
       {loesung ? (
-        <div className="rounded-3xl bg-green-600/25 px-6 py-4 ring-4 ring-green-400" role="status">
+        <div className="rounded-3xl bg-green-600/25 px-6 py-4 ring-4 ring-green-400" aria-label="Lösung">
           <p className="text-xl font-bold text-green-200">Lösung</p>
           {loesungZeilen(frage).map((z, i) => (
             <p key={i} className="text-3xl font-extrabold">
@@ -364,19 +462,16 @@ function FrageFeld({
             <button
               type="button"
               onClick={() => richtig(i)}
-              disabled={versucht.includes(i)}
-              className={`px-5 py-3 text-2xl font-extrabold text-white ${teamStil(i).farbe} disabled:opacity-30`}
+              disabled={gesperrt.includes(i)}
+              className={`px-5 py-3 text-2xl font-extrabold text-white ${teamStil(i).farbe} disabled:opacity-30 ${buzzer?.dran === i ? 'ring-8 ring-white' : ''}`}
             >
               ✓ {t.name} +{wert}
             </button>
             {abzug && (
               <button
                 type="button"
-                onClick={() => {
-                  falsch(i)
-                  setVersucht((v) => [...v, i])
-                }}
-                disabled={versucht.includes(i)}
+                onClick={() => falsch(i)}
+                disabled={gesperrt.includes(i)}
                 aria-label={`${t.name} falsch, minus ${wert}`}
                 className="border-l-2 border-black/20 bg-black/40 px-4 py-3 text-2xl font-extrabold text-white disabled:opacity-30"
               >
@@ -423,5 +518,28 @@ function Endstand({ stand, neueRunde, weiter }: { stand: Spielstand; neueRunde: 
         </Knopf>
       </div>
     </div>
+  )
+}
+
+/** Unter dem Brett: so verbinden sich die Team-Handys */
+function BuzzerHinweis({ pin, verbunden, teams }: { pin: string; verbunden: number; teams: number }) {
+  const link = buzzerLink(pin)
+  const [qr, setQr] = useState<string | null>(null)
+  useEffect(() => {
+    QRCode.toDataURL(link, { margin: 1, width: 240, color: { dark: '#0b1f4d', light: '#ffffff' } })
+      .then(setQr)
+      .catch(() => setQr(null))
+  }, [link])
+  return (
+    <section className="flex items-center justify-center gap-5 rounded-3xl bg-white/5 px-5 py-3" aria-label="Buzzer verbinden">
+      {qr && <img src={qr} alt="QR-Code für die Buzzer-Handys" className="h-24 w-24 shrink-0 rounded-xl" />}
+      <div className="text-xl">
+        <p className="font-extrabold">📱 Ein Handy pro Team: QR-Code scannen, Team wählen</p>
+        <p className="text-white/75">
+          oder unter <b>Mitspielen → Buzzer</b> die PIN <b className="text-3xl tracking-widest text-quizzo-yellow tabular-nums">{pin}</b> eingeben · {verbunden} von {teams} Teams
+          verbunden
+        </p>
+      </div>
+    </section>
   )
 }

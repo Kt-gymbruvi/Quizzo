@@ -61,6 +61,7 @@ Außerdem in Etappe 4: Punkte pro Frage (keine/normal/doppelt), Quiz importieren
 - 🔨 Klassen-Duell (Jeopardy-Stil) – Etappe 11, fertig, noch nicht veröffentlicht: in „Meine Quizze“ 2–6 Quizze abhaken
   (= Kategorien), 2–6 Teams, 3–5 Felder (100–500 Punkte), Fragen der Reihe nach oder zufällig, optional Abzug bei
   falscher Antwort; nur am Beamer, Spielstand nur auf dem Lehrkraft-Gerät, Rückgängig, Endstand
+  - Etappe 13: wählbarer Buzzer – ein Handy pro Team (QR-Code/PIN), wer zuerst drückt, ist dran; nach „falsch“ dürfen die anderen
   - Etappe 12 (SQL `010`): Schwierigkeit pro Frage im Editor (leicht/mittel/schwer) – leichte Fragen auf 100, schwere auf 500
 - ✅ Turnier – Etappe 7, veröffentlicht: nach dem Endstand „Runde 2 mit anderem Quiz“,
   dieselben Mitspielenden und Teams, Punkte laufen weiter, Antworten der Vorrunde werden gelöscht
