@@ -19,6 +19,7 @@ Gemeinsame Felder jeder Frage:
 | `text` | Fragetext (bei Folien: Überschrift), max. 500 Zeichen | – (Pflicht) |
 | `zeitlimit` | Sekunden, 5–240 | je nach Typ |
 | `punkte` | `0` = keine, `1` = normal, `2` = doppelt (nur bei Typen mit Wertung) | `1` |
+| `schwierigkeit` | `"leicht"`, `"mittel"` oder `"schwer"` (auch `1`–`3`; nur bei Typen mit Wertung, fürs Klassen-Duell) | ohne Angabe |
 | `medium` | Bild, Ton oder Video zur Frage (nur am Beamer), siehe unten | keins |
 
 ## Felder je Fragetyp

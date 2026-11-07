@@ -90,6 +90,11 @@ Inhalt von [`migrations/009_lernangebote.sql`](migrations/009_lernangebote.sql) 
 Danach kann die Lehrkraft auf `kt-gymbruvi.github.io/lernen/#bearbeiten` die Lernangebote umsortieren, umbenennen
 und verstecken. Besucher können nur lesen. Ohne diese Tabelle zeigt die Seite einfach den Stand aus `angebote.js`.
 
+## 14. Schwierigkeit pro Frage (Etappe 12)
+Inhalt von [`migrations/010_schwierigkeit.sql`](migrations/010_schwierigkeit.sql) im **SQL Editor** ausführen.
+Danach lässt sich im Frageneditor pro Frage „leicht / mittel / schwer“ wählen; das Klassen-Duell legt leichte
+Fragen auf die niedrigen und schwere auf die hohen Felder. Die alte App-Version funktioniert weiter.
+
 ## Weitere Lehrkräfte
 - **Am einfachsten:** wie in Schritt 5 ein Konto mit Startpasswort anlegen. Die Lehrkraft ändert es nach der ersten Anmeldung über „Passwort ändern“.
 - **Per E-Mail-Einladung** (Users → Add user → Send invitation): Der eingebaute E-Mail-Versand von Supabase schickt nur an Mitglieder deines Supabase-Teams und nur wenige Mails pro Stunde. Für Einladungen an Kolleginnen und Kollegen muss vorher ein eigener SMTP-Server eingetragen werden (Authentication → Emails → SMTP Settings). Das gilt genauso für „Passwort vergessen?“.

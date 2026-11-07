@@ -84,6 +84,17 @@ describe('Quizze verwalten (angemeldet)', () => {
     expect(fakeSupabase.rpc).not.toHaveBeenCalled()
   })
 
+  it('speichert die Schwierigkeit einer Frage mit', async () => {
+    renderApp('/leiten/quiz/neu')
+    await userEvent.type(await screen.findByLabelText('Titel des Quiz'), 'Schwer')
+    await userEvent.type(screen.getByLabelText('Fragetext 1'), 'Hauptstadt von Frankreich?')
+    await userEvent.type(screen.getByLabelText('Frage 1 Antwort A'), 'Paris')
+    await userEvent.type(screen.getByLabelText('Frage 1 Antwort B'), 'Lyon')
+    await userEvent.selectOptions(screen.getByLabelText('Schwierigkeit Frage 1'), 'schwer')
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('quiz_speichern', expect.objectContaining({ p_fragen: [expect.objectContaining({ schwierigkeit: 3 })] }))
+  })
+
   it('speichert ein neues Quiz mit bereinigten Antworten', async () => {
     renderApp('/leiten/quiz/neu')
     await userEvent.type(await screen.findByLabelText('Titel des Quiz'), 'Hauptstädte')

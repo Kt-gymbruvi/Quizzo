@@ -15,6 +15,17 @@ export type Inhalte = {
 }
 export type FrageTyp = keyof Inhalte
 export type Punkte = 0 | 1 | 2
+/** Schwierigkeit (für das Klassen-Duell): 1 leicht, 2 mittel, 3 schwer; ohne Angabe = mittel */
+export type Schwierigkeit = 1 | 2 | 3
+export const SCHWIERIGKEITEN: { wert: Schwierigkeit; name: string }[] = [
+  { wert: 1, name: 'leicht' },
+  { wert: 2, name: 'mittel' },
+  { wert: 3, name: 'schwer' },
+]
+const alsSchwierigkeit = (x: unknown): Schwierigkeit | null => {
+  const n = typeof x === 'string' ? (SCHWIERIGKEITEN.find((s) => s.name === x.trim().toLowerCase())?.wert ?? Number(x)) : x
+  return n === 1 || n === 2 || n === 3 ? n : null
+}
 
 /** Bild, Ton oder Video zur Frage (nur am Beamer). Format wie in der Datenbank (medium_gueltig, 004_medien.sql). */
 export type Medium =
@@ -24,7 +35,7 @@ export type Medium =
 export type MedienArt = Medium['art']
 
 export type Frage = {
-  [T in FrageTyp]: { typ: T; text: string; zeitlimit: number; punkte: Punkte; inhalt: Inhalte[T]; medium?: Medium | null }
+  [T in FrageTyp]: { typ: T; text: string; zeitlimit: number; punkte: Punkte; inhalt: Inhalte[T]; medium?: Medium | null; schwierigkeit?: Schwierigkeit | null }
 }[FrageTyp]
 
 export const ZEITLIMITS = [5, 10, 20, 30, 45, 60, 90, 120, 180, 240] as const
@@ -75,6 +86,7 @@ export function wechsleTyp(f: Frage, typ: FrageTyp): Frage {
   const neu = neueFrage(typ)
   neu.text = f.text
   if (f.medium) neu.medium = f.medium
+  if (f.schwierigkeit && FRAGETYPEN[typ].bewertet) neu.schwierigkeit = f.schwierigkeit
   const alteTexte =
     f.typ === 'auswahl' || f.typ === 'umfrage' ? f.inhalt.antworten : f.typ === 'reihenfolge' ? f.inhalt.elemente : null
   if (alteTexte && (neu.typ === 'auswahl' || neu.typ === 'umfrage')) {
@@ -95,7 +107,8 @@ const eindeutig = (liste: string[]) => new Set(liste.map((s) => s.trim().toLower
 /** Entfernt leere Einträge und Leerzeichen; passt Indizes richtiger Antworten an. */
 export function bereinigeFrage(f: Frage): Frage {
   const medium = bereinigeMedium(f.medium)
-  const basis = { text: t(f.text), zeitlimit: f.zeitlimit, punkte: FRAGETYPEN[f.typ].bewertet ? f.punkte : 0, ...(medium ? { medium } : {}) }
+  const schwierigkeit = FRAGETYPEN[f.typ].bewertet ? alsSchwierigkeit(f.schwierigkeit) : null
+  const basis = { text: t(f.text), zeitlimit: f.zeitlimit, punkte: FRAGETYPEN[f.typ].bewertet ? f.punkte : 0, ...(medium ? { medium } : {}), ...(schwierigkeit ? { schwierigkeit } : {}) }
   switch (f.typ) {
     case 'auswahl': {
       const antworten: string[] = []
@@ -235,7 +248,7 @@ export function pruefeQuiz(titel: string, fragen: Frage[]): string[] {
 
 // ---------------------------------------------------------------------------
 // Import / Export (Dateiformat "quizzo-quiz", Version 1)
-// Jede Frage: { typ, text, zeitlimit?, punkte?, ...Inhalt } – der Inhalt steht direkt in der Frage
+// Jede Frage: { typ, text, zeitlimit?, punkte?, schwierigkeit?, ...Inhalt } – der Inhalt steht direkt in der Frage
 // (Ausnahme Folie: { typ: "folie", text: Überschrift, folientext }). Beschreibung: docs/QUIZ-DATEIFORMAT.md
 // ---------------------------------------------------------------------------
 export const DATEI_FORMAT = 'quizzo-quiz'
@@ -246,7 +259,8 @@ export function exportiereQuiz(titel: string, fragen: Frage[]) {
     version: 1,
     titel,
     fragen: fragen.map((f) => {
-      const basis = { typ: f.typ, text: f.text, zeitlimit: f.zeitlimit, punkte: f.punkte, ...(f.medium ? { medium: f.medium } : {}) }
+      const s = alsSchwierigkeit(f.schwierigkeit)
+      const basis = { typ: f.typ, text: f.text, zeitlimit: f.zeitlimit, punkte: f.punkte, ...(s ? { schwierigkeit: SCHWIERIGKEITEN[s - 1].name } : {}), ...(f.medium ? { medium: f.medium } : {}) }
       // Bei Folien heißt der Folientext in der Datei "folientext" (sonst Konflikt mit der Überschrift "text")
       return f.typ === 'folie' ? { ...basis, folientext: f.inhalt.text } : { ...basis, ...f.inhalt }
     }),
@@ -293,6 +307,8 @@ function importiereFrage(r: Roh): Frage {
   basis.punkte = (FRAGETYPEN[typ].bewertet ? ([0, 1, 2].includes(p) ? p : 1) : 0) as Punkte
   const medium = importiereMedium(r.medium)
   if (medium) basis.medium = bereinigeMedium(medium)
+  const schwierigkeit = FRAGETYPEN[typ].bewertet ? alsSchwierigkeit(r.schwierigkeit) : null
+  if (schwierigkeit) basis.schwierigkeit = schwierigkeit
 
   switch (basis.typ) {
     case 'auswahl': {

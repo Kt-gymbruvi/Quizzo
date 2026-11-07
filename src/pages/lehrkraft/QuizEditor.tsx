@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Knopf, LehrkraftKopf, Meldung, ZurueckLink } from '../../components.tsx'
-import { FRAGETYPEN, TYP_REIHENFOLGE, ZEITLIMITS, neueFrage, pruefeQuiz, wechsleTyp, type Frage, type FrageTyp, type Punkte } from '../../lib/fragetypen.ts'
+import { FRAGETYPEN, SCHWIERIGKEITEN, TYP_REIHENFOLGE, ZEITLIMITS, neueFrage, pruefeQuiz, wechsleTyp, type Frage, type FrageTyp, type Punkte, type Schwierigkeit } from '../../lib/fragetypen.ts'
 import { ladeQuiz, speichereQuiz } from '../../lib/quizze.ts'
 import { fehlerText } from '../../lib/supabase.ts'
 import { FrageFelder } from './editor/FrageFelder.tsx'
@@ -166,6 +166,24 @@ export default function QuizEditor() {
                         <option value={1}>normal</option>
                         <option value={2}>doppelt</option>
                         <option value={0}>keine</option>
+                      </select>
+                    </label>
+                  )}
+                  {info.bewertet && (
+                    <label className="flex items-center gap-2 text-lg" title="Für das Klassen-Duell: leichte Fragen kommen auf niedrige, schwere auf hohe Felder">
+                      Schwierigkeit
+                      <select
+                        value={f.schwierigkeit ?? ''}
+                        onChange={(e) => aendere(fi, { ...f, schwierigkeit: e.target.value ? (Number(e.target.value) as Schwierigkeit) : null })}
+                        className={auswahlStil}
+                        aria-label={`Schwierigkeit Frage ${fi + 1}`}
+                      >
+                        <option value="">–</option>
+                        {SCHWIERIGKEITEN.map((s) => (
+                          <option key={s.wert} value={s.wert}>
+                            {s.name}
+                          </option>
+                        ))}
                       </select>
                     </label>
                   )}

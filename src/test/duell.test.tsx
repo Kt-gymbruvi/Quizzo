@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import App from '../App.tsx'
-import type { Frage } from '../lib/fragetypen.ts'
+import { bereinigeFrage, exportiereQuiz, importiereQuiz, type Frage } from '../lib/fragetypen.ts'
 import { alsAdresse, alsBeamerFrage, ausAdresse, loesungZeilen, neuerStand, punkte, rangliste, schliesseFeld, waehleFragen } from '../lib/duell.ts'
 import { abfrage, eingeloggteSession, fakeSupabase, setzeFakeZurueck } from './fakeSupabase.ts'
 
@@ -22,6 +22,24 @@ describe('Klassen-Duell: Logik', () => {
     expect(zufall).toHaveLength(5)
     expect(zufall.every((i) => ![0, 2].includes(i))).toBe(true)
     expect(waehleFragen([folie, umfrage], 5, false)).toEqual([])
+  })
+
+  it('ordnet nach Schwierigkeit: leicht auf 100, schwer auf 500, ohne Angabe = mittel', () => {
+    const s = (f: Frage, schwierigkeit: 1 | 2 | 3) => ({ ...f, schwierigkeit })
+    const fragen = [s(mc('schwer'), 3), mc('ohne'), s(mc('leicht'), 1), s(wf('mittel'), 2), s(mc('leicht 2'), 1)]
+    expect(waehleFragen(fragen, 5, false).map((i) => fragen[i].text)).toEqual(['leicht', 'leicht 2', 'ohne', 'mittel', 'schwer'])
+    // erst auswählen (die ersten 3), dann sortieren
+    expect(waehleFragen(fragen, 3, false).map((i) => fragen[i].text)).toEqual(['leicht', 'ohne', 'schwer'])
+  })
+
+  it('Schwierigkeit übersteht Export und Import, ungültige Angaben fallen weg', () => {
+    const mitS: Frage = { ...mc('x'), schwierigkeit: 3 }
+    const datei = exportiereQuiz('T', [mitS, mc('y')])
+    expect(datei.fragen[0]).toMatchObject({ schwierigkeit: 'schwer' })
+    expect(datei.fragen[1]).not.toHaveProperty('schwierigkeit')
+    const zurueck = importiereQuiz(JSON.stringify({ ...datei, fragen: [...datei.fragen, { ...datei.fragen[1], schwierigkeit: 'sehr schwer' }, { ...datei.fragen[1], schwierigkeit: 1 }] }))
+    expect(zurueck.fragen.map((f) => f.schwierigkeit ?? null)).toEqual([3, null, null, 1])
+    expect(bereinigeFrage({ ...umfrage, schwierigkeit: 3 })).not.toHaveProperty('schwierigkeit') // Umfrage hat keine Lösung
   })
 
   it('Adresse hin und zurück, ungültige Angaben werden abgefangen', () => {

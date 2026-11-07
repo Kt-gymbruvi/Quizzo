@@ -72,17 +72,18 @@ export async function merkeBenutzt(id: string) {
 }
 
 export async function ladeQuiz(id: string): Promise<{ titel: string; fragen: Frage[] }> {
-  const { data, error } = await db()
-    .from('quizze')
-    .select('titel, fragen(position, typ, text, inhalt, zeitlimit, punkte, medium)')
-    .eq('id', id)
-    .order('position', { referencedTable: 'fragen' })
-    .single()
+  const abfrage = (spalten: string) =>
+    db().from('quizze').select(`titel, fragen(${spalten})`).eq('id', id).order('position', { referencedTable: 'fragen' }).single()
+  let { data, error } = await abfrage('position, typ, text, inhalt, zeitlimit, punkte, medium, schwierigkeit')
+  // Datenbank noch ohne Migration 010 (Schwierigkeit): ohne die neue Spalte laden
+  if (error && /schwierigkeit/.test(error.message ?? '')) ({ data, error } = await abfrage('position, typ, text, inhalt, zeitlimit, punkte, medium'))
   if (error) throw error
+  const quiz = data as unknown as { titel: string; fragen: (Frage & { position: number })[] }
   return {
-    titel: data.titel as string,
-    fragen: (data.fragen as (Frage & { position: number })[]).map(
-      ({ typ, text, inhalt, zeitlimit, punkte, medium }) => ({ typ, text, inhalt, zeitlimit, punkte, ...(medium ? { medium } : {}) }) as Frage,
+    titel: quiz.titel,
+    fragen: quiz.fragen.map(
+      ({ typ, text, inhalt, zeitlimit, punkte, medium, schwierigkeit }) =>
+        ({ typ, text, inhalt, zeitlimit, punkte, ...(medium ? { medium } : {}), ...(schwierigkeit ? { schwierigkeit } : {}) }) as Frage,
     ),
   }
 }

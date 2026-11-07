@@ -89,7 +89,8 @@ export function DuellEinrichten({
             Falsche Antworten kosten Punkte <span className="text-white/60">(dann darf ein anderes Team antworten)</span>
           </Schalter>
           <p className="text-base text-white/60">
-            Umfragen, Wortwolken, offene Fragen und Folien werden übersprungen – sie haben keine richtige Lösung. Der Spielstand bleibt nur auf diesem Gerät.
+            Leichte Fragen kommen auf die niedrigen Felder, schwere auf die hohen (Schwierigkeit im Frageneditor; ohne Angabe = mittel). Umfragen,
+            Wortwolken, offene Fragen und Folien werden übersprungen – sie haben keine richtige Lösung. Der Spielstand bleibt nur auf diesem Gerät.
           </p>
         </div>
 

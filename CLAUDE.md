@@ -25,6 +25,7 @@ Quizzo ist eine Live-Quiz-Web-App für den Schulunterricht (eigener Name, eigene
 - Schüler haben keinen Tabellenzugriff; sie nutzen nur die Funktionen `spiel_beitreten`, `spiel_zustand_schueler`, `antwort_abgeben` (security definer, Spieler-Token). Punkte berechnet der Server.
 - Spieldaten werden beim Beenden gelöscht; Spiele älter als 6 Stunden räumt `spiele_aufraeumen()` automatisch weg.
 - Quizze haben optional einen Ordner (`quizze.ordner`, Text) und `zuletzt_benutzt` (Migration 008). Unterordner als Pfad mit „/“ (z. B. `Oberstufe/Evolution`, max. 60 Zeichen, Hilfsfunktionen in `src/lib/ordner.ts`); Ordner gibt es, solange ein Quiz darin liegt – leere neue Ordner merkt sich nur das Gerät (localStorage).
+- Fragen haben optional `schwierigkeit` (1 leicht, 2 mittel, 3 schwer; Migration 010); ohne Angabe = mittel. Das Klassen-Duell sortiert danach.
 - Klassen-Duell (Jeopardy, `src/lib/duell.ts`, Route `/leiten/duell?q=…`): nur Beamer, keine Handys, nichts auf dem Server – der Spielstand (Teamnamen, Punkte) liegt nur im localStorage des Lehrkraft-Geräts.
 - Spielmodi: `spiele.modus` ('klassisch' | 'team'), Teams 1–6 in `spieler.team`; Teamwertung (Durchschnitt) liefert `team_wertung()` (nur intern).
 - Aufgaben ohne Live-Spiel (`aufgaben.modus`: 'selbstlernen' | 'hausaufgabe' | 'pruefung', Migration 007): Fragen werden beim Erstellen kopiert; Schüler nutzen nur `aufgabe_oeffnen`, `aufgabe_beitreten`, `aufgabe_zustand`, `aufgabe_antworten`. Abgelaufenes löscht `aufgaben_aufraeumen()` (auch über `spiele_aufraeumen()`).

@@ -42,16 +42,25 @@ export const fuersDuell = (f: Frage) => FRAGETYPEN[f.typ].bewertet
 
 export type Kategorie = { quizId: string; titel: string; fragen: Frage[] }
 
-/** Wählt pro Quiz die Fragen-Nummern aus (der Reihe nach oder zufällig). */
+/** Schwierigkeit fürs Sortieren: ohne Angabe = mittel */
+export const schwierigkeitVon = (f: Frage) => f.schwierigkeit ?? 2
+
+/**
+ * Wählt pro Quiz die Fragen-Nummern aus (der Reihe nach oder zufällig) und ordnet sie nach Schwierigkeit:
+ * leichte auf die niedrigen Felder (100), schwere auf die hohen (500). Bei gleicher Schwierigkeit bleibt die Reihenfolge.
+ */
 export function waehleFragen(fragen: Frage[], zeilen: number, zufall: boolean, zufallszahl: () => number = Math.random): number[] {
   const passend = fragen.map((f, i) => (fuersDuell(f) ? i : -1)).filter((i) => i >= 0)
-  if (!zufall) return passend.slice(0, zeilen)
-  const gemischt = [...passend]
-  for (let i = gemischt.length - 1; i > 0; i--) {
-    const j = Math.floor(zufallszahl() * (i + 1))
-    ;[gemischt[i], gemischt[j]] = [gemischt[j], gemischt[i]]
+  let auswahl = passend.slice(0, zeilen)
+  if (zufall) {
+    const gemischt = [...passend]
+    for (let i = gemischt.length - 1; i > 0; i--) {
+      const j = Math.floor(zufallszahl() * (i + 1))
+      ;[gemischt[i], gemischt[j]] = [gemischt[j], gemischt[i]]
+    }
+    auswahl = gemischt.slice(0, zeilen)
   }
-  return gemischt.slice(0, zeilen)
+  return auswahl.map((i, pos) => ({ i, pos })).sort((a, b) => schwierigkeitVon(fragen[a.i]) - schwierigkeitVon(fragen[b.i]) || a.pos - b.pos).map((x) => x.i)
 }
 
 export const wertVon = (zeile: number) => (zeile + 1) * 100
