@@ -1,12 +1,22 @@
 # Quizzo – Projektregeln
 
-Quizzo ist eine Live-Quiz-Web-App für den Schulunterricht (eigener Name, eigenes Design).
+Quizzo ist eine Live-Quiz-Web-App für den Schulunterricht (eigener Name, eigenes Design): Die Lehrkraft erstellt Quizze und spielt sie am Beamer, Schüler spielen anonym per Handy mit PIN; dazu Aufgaben ohne Live-Spiel (Selbstlernen, Hausaufgabe, Prüfung) und das Klassen-Duell.
+
+**Projektgedächtnis:** Stand, offene Aufgaben und nächste Schritte in `docs/PROJECT-STATUS.md`, Architekturentscheidungen in `docs/DECISIONS.md`, Etappen in `FAHRPLAN.md`. Nach größeren Funktionen oder Entscheidungen diese Dateien aktualisieren (knapp, nur Tatsächliches).
+Schwesterprojekte (eigene Repos, gleiche Supabase-Datenbank): Klassenfunk (`../Klassenfunk`) und die Startseite (`../Kt-gymbruvi.github.io`).
 
 ## Technik
-- Statische Web-App: Vite + React + TypeScript + Tailwind CSS.
+- Statische Web-App: Vite 8 + React 19 + TypeScript + Tailwind CSS v4, React Router (HashRouter), `@supabase/supabase-js` v2, `qrcode`.
+- Tests: Vitest + Testing Library (jsdom), PGlite für SQL.
 - Hosting: GitHub Pages unter https://kt-gymbruvi.github.io/Quizzo/ (Basis-Pfad `/Quizzo/`).
-- Deployment automatisch per GitHub Actions (`.github/workflows/deploy.yml`) bei Push auf `main`.
+- Deployment automatisch per GitHub Actions (`.github/workflows/deploy.yml`: `npm ci`, `npm test`, `npm run build`) bei Push auf `main`.
 - Daten, Lehrkraft-Login und Echtzeit über Supabase (Region Frankfurt). Kein eigener Server.
+- Code: `src/pages/` (Schüler-Seiten), `src/pages/lehrkraft/` (Verwaltung, Editor unter `editor/`), `src/spiel/` (Beamer, Handy), `src/lib/` (Datenzugriff und Logik je Bereich), `src/test/` (Tests, `sql/` für Datenbank).
+
+## Konventionen
+- Bezeichner, Kommentare, Commit-Nachrichten auf Deutsch; Commits je Etappe („Etappe N: …“).
+- Neue Funktion = Etappe: Code + Tests (UI mit `fakeSupabase`, SQL mit PGlite) + `FAHRPLAN.md`/`docs/` aktualisieren.
+- Datenbanklogik (Prüfung, Punkte, Rechte) gehört in SQL-Funktionen, nicht nur in den Client.
 
 ## Oberfläche
 - Oberfläche komplett auf Deutsch.

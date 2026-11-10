@@ -7,13 +7,13 @@ Stand: November 2026. ✅ = fertig, 🔨 = in Arbeit, ⏳ = geplant
 - ✅ Etappe 2: Lehrkraft-Login (nur eingeladen), Quizze anlegen/bearbeiten
 - ✅ Etappe 3: Live-Spiel (PIN, Lobby, Countdown, Auswertung, Endstand, Daten löschen)
 - ✅ Etappe 4: neun Fragetypen, Import/Export, Wieder-Einsteigen nach „Zurück“, Handy-Ansicht ohne Scrollen
-- 🔨 Etappe 9 (fertig, noch nicht veröffentlicht – SQL `008` nötig):
+- ✅ Etappe 9 (veröffentlicht, SQL `008`):
   - Beamer (iPad quer) und Handy ohne Scrollen: Inhalt wird automatisch verkleinert, wenn er nicht passt
     (Lobby, Frage, Auswertung, Endstand; Handy auch bei langen Antworten, in Aufgaben und in der Wiederholung)
   - „Meine Quizze“ neu: Ordner (Spalte links), Suche, Sortierung (zuletzt bearbeitet / zuletzt gespielt / Name),
     kompakte Zeilen mit „▶ Spielen“, „📝 Verteilen“ und „⋯“-Menü; verteilte Aufgaben in eigenem Reiter (veröffentlicht)
   - Unterordner (z. B. Oberstufe › Evolution › Selektion): Baum links, Brotkrumen, Unterordner-Kacheln,
-    Ordner anlegen/umbenennen/verschieben/auflösen – ohne neue SQL-Datei (noch nicht veröffentlicht)
+    Ordner anlegen/umbenennen/verschieben/auflösen – ohne neue SQL-Datei
   - Zeitlimit pro Frage bei Hausaufgabe und Prüfung (feste Zeit oder Zeiten aus dem Quiz); Fragen werden erst
     beim Öffnen übertragen, zu spät = 0 Punkte, die Lehrkraft sieht ⏱ in den Ergebnissen
 
@@ -37,9 +37,8 @@ Ideen für später: Medien auch auf den Handys anzeigen (Schalter pro Frage), Co
 Außerdem in Etappe 4: Punkte pro Frage (keine/normal/doppelt), Quiz importieren/exportieren (JSON, siehe `docs/QUIZ-DATEIFORMAT.md`), Quiz und einzelne Fragen kopieren.
 
 ## Startseite kt-gymbruvi.github.io
-- ✅ Startseite „Lernen mit Spaß“, Werkzeuge (Timer, Gruppen & Zufall, Herzfrequenz-Zonen), Impressum mit Verweis auf die Schule
-- ✅ Lernangebote: 40 übernommene Claude-Artefakte (Biologie 5–13, Sport), Baum Fach › Jahrgang › Thema, Liste mit Erklärung
-- 🔨 Etappe 10: Ordnung direkt auf der Seite ändern (`lernen/#bearbeiten`, SQL `009`) – fertig, noch nicht veröffentlicht
+- ✅ Etappe 10 (SQL `009`, Tabelle `lernangebote`): Ordnung der Lernangebote direkt auf der Seite ändern (`lernen/#bearbeiten`)
+- Alles Weitere zur Startseite steht in deren Repo (`../Kt-gymbruvi.github.io/docs/PROJECT-STATUS.md`).
 
 ## Kleinigkeiten ⏳
 - ✅ Schieberegler: Jahreszahlen ohne Tausenderpunkt (1975 statt 1.975; Punkt erst ab 10.000)
@@ -57,8 +56,8 @@ Außerdem in Etappe 4: Punkte pro Frage (keine/normal/doppelt), Quiz importieren
 - ✅ Prüfung – Etappe 8, veröffentlicht: 1–60 Pseudonym-Codes zum Ausdrucken (Name nur auf Papier),
   keine Lösungen auf dem Handy, Codes bei Gerätewechsel freigeben; Löschung spätestens nach 30 Tagen
   (Ideen für später: Fragen in zufälliger Reihenfolge, Medien auf dem Handy erlauben, Frist verlängern)
-- 🔨 Zeitlimit pro Frage für Hausaufgabe und Prüfung – Etappe 9 (gegen Nachschlagen/KI-Hilfe; verhindert sie nicht ganz)
-- 🔨 Klassen-Duell (Jeopardy-Stil) – Etappe 11, fertig, noch nicht veröffentlicht: in „Meine Quizze“ 2–6 Quizze abhaken
+- ✅ Zeitlimit pro Frage für Hausaufgabe und Prüfung – Etappe 9, veröffentlicht (gegen Nachschlagen/KI-Hilfe; verhindert sie nicht ganz)
+- ✅ Klassen-Duell (Jeopardy-Stil) – Etappe 11–13, veröffentlicht: in „Meine Quizze“ 2–6 Quizze abhaken
   (= Kategorien), 2–6 Teams, 3–5 Felder (100–500 Punkte), Fragen der Reihe nach oder zufällig, optional Abzug bei
   falscher Antwort; nur am Beamer, Spielstand nur auf dem Lehrkraft-Gerät, Rückgängig, Endstand
   - Etappe 13: wählbarer Buzzer – ein Handy pro Team (QR-Code/PIN), wer zuerst drückt, ist dran; nach „falsch“ dürfen die anderen
