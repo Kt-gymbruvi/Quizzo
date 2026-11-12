@@ -19,6 +19,14 @@ describe('Startseite', () => {
     expect(screen.getByRole('link', { name: 'Mitspielen' })).toBeInTheDocument()
   })
 
+  it('führt von der Startseite und von der Anmeldung zurück zur Plattform-Startseite „Lehrraum“', async () => {
+    const { unmount } = renderApp()
+    expect(screen.getByRole('link', { name: 'Zur Startseite Lehrraum' })).toHaveAttribute('href', 'https://kt-gymbruvi.github.io/')
+    unmount()
+    renderApp('/leiten')
+    expect(await screen.findByRole('link', { name: 'Zur Startseite Lehrraum' })).toHaveAttribute('href', 'https://kt-gymbruvi.github.io/')
+  })
+
   it('zeigt einen Verbindungsstatus an', async () => {
     renderApp()
     expect(

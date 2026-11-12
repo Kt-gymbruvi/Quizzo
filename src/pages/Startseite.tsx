@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Logo } from '../components.tsx'
+import { Logo, ZurLehrraum } from '../components.tsx'
 import { gemerkteTeilnahme } from '../lib/spiel.ts'
 import { ladeUebungen } from '../lib/wiederholung.ts'
 import { pruefeVerbindung, type Verbindungsstatus } from '../lib/supabase.ts'
@@ -22,7 +22,8 @@ export default function Startseite() {
   }, [])
 
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-12 px-6 py-10 text-center">
+    <main className="relative flex min-h-dvh flex-col items-center justify-center gap-12 px-6 py-10 text-center">
+      <ZurLehrraum ecke />
       <div className="flex flex-col items-center gap-3">
         <Logo gross />
         <p className="text-xl text-white/85 sm:text-2xl">Das Live-Quiz für deinen Unterricht</p>

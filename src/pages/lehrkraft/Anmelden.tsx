@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Eingabe, Knopf, Logo, Meldung, ZurueckLink } from '../../components.tsx'
+import { Eingabe, Knopf, Logo, Meldung, ZurueckLink, ZurLehrraum } from '../../components.tsx'
 import { db, fehlerText } from '../../lib/supabase.ts'
 
 export default function Anmelden() {
@@ -40,7 +40,8 @@ export default function Anmelden() {
   }
 
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-8 px-6 py-10">
+    <main className="relative flex min-h-dvh flex-col items-center justify-center gap-8 px-6 py-10">
+      <ZurLehrraum ecke />
       <Logo />
       <form
         onSubmit={vergessen ? linkSenden : anmelden}

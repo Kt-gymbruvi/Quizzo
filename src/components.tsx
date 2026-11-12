@@ -15,6 +15,26 @@ export function Logo({ gross = false }: { gross?: boolean }) {
   )
 }
 
+/** Adresse der Startseite der Plattform („Lehrraum“) */
+export const LEHRRAUM = 'https://kt-gymbruvi.github.io/'
+
+/** Kleiner Knopf zur Startseite der Plattform. Steht nur außerhalb des laufenden Spiels (kein versehentliches Antippen). */
+export function ZurLehrraum({ ecke = false }: { ecke?: boolean }) {
+  return (
+    <a
+      href={LEHRRAUM}
+      title="Zur Startseite Lehrraum"
+      aria-label="Zur Startseite Lehrraum"
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-base font-semibold text-white/85 ring-1 ring-white/15 hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-4 focus-visible:ring-white ${
+        ecke ? 'absolute top-3 left-3 z-20' : ''
+      }`}
+    >
+      <span aria-hidden="true">←</span>
+      <span>Lehrraum</span>
+    </a>
+  )
+}
+
 export function ZurueckLink({ zu = '/', text = '← Startseite' }: { zu?: string; text?: string }) {
   return (
     <Link to={zu} className="text-lg text-white/80 underline-offset-4 hover:text-quizzo-yellow hover:underline">
@@ -71,6 +91,7 @@ export function LehrkraftKopf({ links }: { links?: ReactNode }) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-center gap-6">
+        <ZurLehrraum />
         <Link to="/" aria-label="Zur Startseite">
           <Logo />
         </Link>
