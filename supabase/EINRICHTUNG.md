@@ -95,6 +95,12 @@ Inhalt von [`migrations/010_schwierigkeit.sql`](migrations/010_schwierigkeit.sql
 Danach lässt sich im Frageneditor pro Frage „leicht / mittel / schwer“ wählen; das Klassen-Duell legt leichte
 Fragen auf die niedrigen und schwere auf die hohen Felder. Die alte App-Version funktioniert weiter.
 
+## 15. Verschlüsselte Tresore für Notenbuch und Tafel-Klassen (14.11.2026, ausgeführt)
+Inhalt von [`migrations/011_tresore.sql`](migrations/011_tresore.sql) im **SQL Editor** ausführen.
+Legt die Tabelle `lr_tresore` an: je Lehrkraft ein Tresor für das Notenbuch (`notenbuch`), die Namensliste für die
+Tafel (`namen`) und die Klassen der Lehrraum-App (`klassen`). Der Server sieht nur verschlüsselte Daten; jede
+Lehrkraft liest und schreibt nur ihre eigenen Zeilen. Quizzo selbst benutzt die Tabelle nicht.
+
 ## Weitere Lehrkräfte
 - **Am einfachsten:** wie in Schritt 5 ein Konto mit Startpasswort anlegen. Die Lehrkraft ändert es nach der ersten Anmeldung über „Passwort ändern“.
 - **Per E-Mail-Einladung** (Users → Add user → Send invitation): Der eingebaute E-Mail-Versand von Supabase schickt nur an Mitglieder deines Supabase-Teams und nur wenige Mails pro Stunde. Für Einladungen an Kolleginnen und Kollegen muss vorher ein eigener SMTP-Server eingetragen werden (Authentication → Emails → SMTP Settings). Das gilt genauso für „Passwort vergessen?“.
