@@ -11,6 +11,7 @@ import Aufgabe from './pages/Aufgabe.tsx'
 import Buzzer from './pages/Buzzer.tsx'
 import AufgabeDetail from './pages/lehrkraft/AufgabeDetail.tsx'
 import Duell from './pages/lehrkraft/Duell.tsx'
+import SpielDiagnose from './pages/lehrkraft/SpielDiagnose.tsx'
 
 export default function App() {
   return (
@@ -31,6 +32,14 @@ export default function App() {
           element={
             <NurAngemeldet>
               <SpielLeiten />
+            </NurAngemeldet>
+          }
+        />
+        <Route
+          path="/leiten/spiel/:id/diagnose"
+          element={
+            <NurAngemeldet>
+              <SpielDiagnose />
             </NurAngemeldet>
           }
         />

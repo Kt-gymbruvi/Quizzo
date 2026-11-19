@@ -69,6 +69,9 @@ Außerdem in Etappe 4: Punkte pro Frage (keine/normal/doppelt), Quiz importieren
   - Etappe 12 (SQL `010`): Schwierigkeit pro Frage im Editor (leicht/mittel/schwer) – leichte Fragen auf 100, schwere auf 500
 - ✅ Turnier – Etappe 7, veröffentlicht: nach dem Endstand „Runde 2 mit anderem Quiz“,
   dieselben Mitspielenden und Teams, Punkte laufen weiter, Antworten der Vorrunde werden gelöscht
+- ✅ Diagnose – Etappe 16 (ohne SQL, noch nicht veröffentlicht): im Endstand „📊 Diagnose“ (nur für die Lehrkraft, nicht am Beamer):
+  Quote pro Frage, häufigste falsche Antwort, Tabelle „Wer braucht noch Hilfe?“, Knopf „Wiederholungs-Quiz anlegen“
+  (Fragen unter 60 % richtig); nichts wird zusätzlich gespeichert, beim Beenden ist alles gelöscht
 - ✅ Wiederholung – Etappe 7, veröffentlicht: falsch beantwortete Fragen merkt sich nur das
   Handy des Schülers (max. 50, 30 Tage), Übungsseite `#/wiederholen` ohne Zeitdruck, richtig geübte verschwinden
 

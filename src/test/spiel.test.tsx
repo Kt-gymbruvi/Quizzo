@@ -393,6 +393,7 @@ describe('Spiel leiten (Lehrkraft)', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     rpcAntworten({ spiel_zustand_lehrkraft: lehrkraftZustand({ status: 'ende', spieler: [{ id: 'p1', spitzname: 'Fuchs', punkte: 1800 }] }) })
     renderApp('/leiten/spiel/s1')
+    expect(await screen.findByRole('link', { name: /Diagnose/ })).toHaveAttribute('href', '/leiten/spiel/s1/diagnose')
     await userEvent.click(await screen.findByRole('button', { name: 'Spiel beenden und Daten löschen' }))
     expect(fakeSupabase.from).toHaveBeenCalledWith('spiele')
     expect(await screen.findByText('Spiel beendet. Alle Spieldaten wurden gelöscht.')).toBeInTheDocument()

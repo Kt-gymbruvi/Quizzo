@@ -8,6 +8,8 @@ Neue Entscheidungen oben anfügen: Datum/Etappe, Entscheidung, Grund, verworfene
 - **Neue Fragetypen** (Etappe 15): Lücken im Lückentext als `[Lösung|Schreibweise]` im Text statt eigener Felder – schnell zu tippen, gut zu importieren; zerlegt wird gleich in SQL und TypeScript. Antworten bei Kategorisieren als Objekt `{Begriff: Gruppe}` (unabhängig von der gemischten Reihenfolge). Hotspot-Ziel als Rechteck in Prozent des Bildes (passt auf jeder Bildschirmgröße).
 - **Ausnahme „Medien nur am Beamer“** (Etappe 15): Das Bild einer Hotspot-Frage ist Teil der Frage und erscheint auch auf den Handys (und in Aufgaben). Grund: ohne Bild keine Antwort möglich. Es bleiben Dateien aus dem eigenen Speicher (oder https-Adressen der Lehrkraft); `medium` bleibt Beamer-only.
 
+- **Diagnose ohne neue SQL-Funktion** (Etappe 16): Die Lehrkraft darf Spieler und Antworten ihres eigenen Spiels schon per RLS lesen (002); die Auswertung rechnet der Client. Keine zusätzliche Speicherung – die Diagnose gibt es nur bis zum Beenden des Spiels. Eigene Seite statt Beamer-Ansicht, weil Spitznamen mit Ergebnissen nicht an die Wand gehören.
+
 ## Plattform
 - **Statische App auf GitHub Pages + Supabase (Frankfurt), kein eigener Server.** Kostenlos, wartungsarm, Daten in der EU. Logik, die nicht manipulierbar sein darf (Punkte, Prüfung von Fragen/Antworten, Rechte), liegt in SQL-Funktionen (`antwort_bewerten`, `frage_gueltig`, RLS).
 - **HashRouter** statt BrowserRouter: GitHub Pages kann keine Weiterleitungen für Unterseiten.

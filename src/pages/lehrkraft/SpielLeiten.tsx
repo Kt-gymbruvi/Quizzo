@@ -161,7 +161,7 @@ export default function SpielLeiten() {
         {z.status === 'frage' && <FrageAnsicht z={z} sekunden={sekunden} beschaeftigt={beschaeftigt} aufloesen={() => steuern('aufloesen')} weiter={() => steuern('weiter')} />}
         {z.status === 'auswertung' && <Auswertung z={z} beschaeftigt={beschaeftigt} weiter={() => steuern('weiter')} />}
         {z.status === 'ende' && (
-          <Endstand z={z} aktionen={<EndeAktionen beenden={() => beenden(true)} naechsteRunde={rundeStarten} runde={z.runde ?? 1} beschaeftigt={beschaeftigt} />} />
+          <Endstand z={z} aktionen={<EndeAktionen beenden={() => beenden(true)} naechsteRunde={rundeStarten} runde={z.runde ?? 1} beschaeftigt={beschaeftigt} diagnose={`/leiten/spiel/${id}/diagnose`} />} />
         )}
       </Einpassen>
     </main>
@@ -536,11 +536,14 @@ function EndeAktionen({
   naechsteRunde,
   runde,
   beschaeftigt,
+  diagnose,
 }: {
   beenden: () => void
   naechsteRunde: (quizId: string) => void
   runde: number
   beschaeftigt: boolean
+  /** Adresse der Diagnose-Seite (nur für die Lehrkraft) */
+  diagnose: string
 }) {
   const [quizze, setQuizze] = useState<QuizUebersicht[] | null>(null)
   const [offen, setOffen] = useState(false)
@@ -565,6 +568,9 @@ function EndeAktionen({
           Spiel beenden und Daten löschen
         </Knopf>
       </div>
+      <Link to={diagnose} className="text-xl font-semibold text-white/80 underline decoration-white/40 underline-offset-4 hover:text-quizzo-yellow">
+        📊 Diagnose: Welche Fragen waren schwer? (nur für dich, nicht am Beamer)
+      </Link>
       {offen && (
         <section className="flex w-full flex-col gap-3 rounded-3xl bg-quizzo-navy-light p-5 ring-1 ring-white/15" aria-label="Quiz für die nächste Runde">
           <div className="flex items-center justify-between gap-3">
