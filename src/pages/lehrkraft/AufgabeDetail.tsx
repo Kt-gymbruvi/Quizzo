@@ -6,16 +6,20 @@ import {
   MODUS_INFO,
   aufgabenLink,
   antwortAlsText,
+  bewerteAntwort,
   ergebnisCsv,
   gibCodeFrei,
   hoechstpunkte,
   ladeErgebnisse,
   loescheAufgabe,
   schliesseAufgabe,
+  vonHandBewertbar,
+  wartetAufBewertung,
+  type AufgabeAntwort,
   type AufgabeErgebnis,
   type AufgabeTeilnehmer,
 } from '../../lib/aufgaben.ts'
-import { FRAGETYPEN } from '../../lib/fragetypen.ts'
+import { FRAGETYPEN, mitPunkten, vonHand } from '../../lib/fragetypen.ts'
 import { useRegelmaessig } from '../../lib/spiel.ts'
 import { fehlerText } from '../../lib/supabase.ts'
 
@@ -144,7 +148,7 @@ export default function AufgabeDetail() {
         <Statistik e={e} />
       ) : (
         <>
-          <Uebersicht e={e} max={max} />
+          <Uebersicht e={e} max={max} bewerten={(t, nr, anteil) => aktion(async () => void (await bewerteAntwort(t.id, nr, anteil)))} />
           {e.modus === 'pruefung' && <CodeListe e={e} freigeben={(t) => aktion(() => gibCodeFrei(t.id))} />}
         </>
       )}
@@ -236,10 +240,13 @@ function zeichen(anteil: number | undefined, zuSpaet?: boolean) {
 }
 
 /** Hausaufgabe/Prüfung: Tabelle Teilnehmer × Fragen */
-function Uebersicht({ e, max }: { e: AufgabeErgebnis; max: number }) {
+type Bewerten = (t: AufgabeTeilnehmer, frageNr: number, anteil: 0 | 0.5 | 1) => void
+
+function Uebersicht({ e, max, bewerten }: { e: AufgabeErgebnis; max: number; bewerten: Bewerten }) {
   const [offen, setOffen] = useState<string | null>(null)
   const teilnehmer = e.teilnehmer.filter((t) => t.begonnen_am)
   const name = e.modus === 'pruefung' ? 'Code' : 'Spitzname'
+  const wartend = teilnehmer.reduce((s, t) => s + e.fragen.filter((f, n) => wartetAufBewertung(f, t.antworten.find((a) => a.frage_nr === n))).length, 0)
 
   if (!teilnehmer.length) {
     return <p className="text-2xl text-white/70 print:hidden">Noch hat niemand angefangen.</p>
@@ -249,6 +256,11 @@ function Uebersicht({ e, max }: { e: AufgabeErgebnis; max: number }) {
       <h3 className="text-3xl font-extrabold">
         Ergebnisse · {teilnehmer.filter((t) => t.abgegeben_am).length} von {teilnehmer.length} abgegeben
       </h3>
+      {wartend > 0 && (
+        <p className="rounded-2xl bg-amber-500/20 px-5 py-3 text-xl">
+          ✎ {wartend} {wartend === 1 ? 'offene Antwort wartet' : 'offene Antworten warten'} auf deine Bewertung (?) – Zeile anklicken und mit ✗ / ½ / ✓ bewerten.
+        </p>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xl">
           <thead className="text-lg text-white/60">
@@ -276,7 +288,7 @@ function Uebersicht({ e, max }: { e: AufgabeErgebnis; max: number }) {
                     {t.punkte} / {max} <span className="text-white/50">({max ? prozent(t.punkte / max) : '–'})</span>
                   </td>
                   {e.fragen.map((f, n) => {
-                    if (!FRAGETYPEN[f.typ].bewertet) {
+                    if (!mitPunkten(f)) {
                       const beantwortet = t.antworten.some((a) => a.frage_nr === n)
                       return (
                         <td key={n} className="px-1 py-2 text-center text-white/50" title={beantwortet ? 'beantwortet' : 'ohne Antwort'}>
@@ -285,7 +297,7 @@ function Uebersicht({ e, max }: { e: AufgabeErgebnis; max: number }) {
                       )
                     }
                     const antwort = t.antworten.find((a) => a.frage_nr === n)
-                    const z = zeichen(antwort?.anteil, antwort?.zu_spaet)
+                    const z = wartetAufBewertung(f, antwort) ? WARTET : zeichen(antwort?.anteil, antwort?.zu_spaet)
                     return (
                       <td key={n} className={`px-1 py-2 text-center text-2xl font-black ${z.stil}`} title={z.titel}>
                         {z.z}
@@ -296,7 +308,7 @@ function Uebersicht({ e, max }: { e: AufgabeErgebnis; max: number }) {
                 {offen === t.id && (
                   <tr>
                     <td colSpan={2 + e.fragen.length} className="pb-4">
-                      <Antworten e={e} t={t} />
+                      <Antworten e={e} t={t} bewerten={bewerten} />
                     </td>
                   </tr>
                 )}
@@ -309,10 +321,11 @@ function Uebersicht({ e, max }: { e: AufgabeErgebnis; max: number }) {
                 Anteil richtig je Frage
               </td>
               {e.fragen.map((f, n) => {
-                const a = teilnehmer.flatMap((t) => t.antworten.filter((x) => x.frage_nr === n))
+                // offene Fragen: nur schon bewertete Antworten zählen
+                const a = teilnehmer.flatMap((t) => t.antworten.filter((x) => x.frage_nr === n && !wartetAufBewertung(f, x)))
                 return (
                   <td key={n} className="px-1 py-2 text-center tabular-nums">
-                    {FRAGETYPEN[f.typ].bewertet && a.length ? prozent(a.reduce((s, x) => s + x.anteil, 0) / a.length) : ''}
+                    {mitPunkten(f) && a.length ? prozent(a.reduce((s, x) => s + x.anteil, 0) / a.length) : ''}
                   </td>
                 )
               })}
@@ -320,23 +333,57 @@ function Uebersicht({ e, max }: { e: AufgabeErgebnis; max: number }) {
           </tfoot>
         </table>
       </div>
-      <p className="text-lg text-white/60">Tipp: Zeile anklicken, um alle Antworten zu sehen (auch Freitext und offene Fragen).</p>
+      <p className="text-lg text-white/60">
+        Tipp: Zeile anklicken, um alle Antworten zu sehen. Freitext und offene Fragen „von Hand bewerten“ kannst du dort mit ✗ / ½ / ✓ bewerten.
+      </p>
     </section>
   )
 }
 
-function Antworten({ e, t }: { e: AufgabeErgebnis; t: AufgabeTeilnehmer }) {
+const WARTET = { z: '?', titel: 'noch nicht bewertet', stil: 'text-amber-300' }
+
+/** Knöpfe ✗ ½ ✓ zum Bewerten von Hand (aktuelle Bewertung hervorgehoben) */
+function BewertenKnoepfe({ f, a, nr, bewerten }: { f: AufgabeErgebnis['fragen'][number]; a: AufgabeAntwort; nr: number; bewerten: (anteil: 0 | 0.5 | 1) => void }) {
+  const bewertet = a.von_hand || f.typ === 'freitext'
+  const stufen = [
+    { anteil: 0, zeichen: '✗', name: 'falsch', farbe: 'bg-red-600' },
+    { anteil: 0.5, zeichen: '½', name: 'halb richtig', farbe: 'bg-amber-600' },
+    { anteil: 1, zeichen: '✓', name: 'richtig', farbe: 'bg-green-600' },
+  ] as const
+  return (
+    <span className="ml-2 inline-flex gap-1 align-middle" role="group" aria-label={`Frage ${nr + 1} bewerten`}>
+      {stufen.map((s) => {
+        const aktiv = bewertet && a.anteil === s.anteil
+        return (
+          <button
+            key={s.anteil}
+            type="button"
+            onClick={() => bewerten(s.anteil)}
+            aria-pressed={aktiv}
+            aria-label={`Frage ${nr + 1}: ${s.name}`}
+            title={s.name}
+            className={`min-w-11 rounded-lg px-2 py-1 text-xl font-black transition ${aktiv ? `${s.farbe} text-white` : 'bg-white/10 text-white/80 hover:bg-white/25'}`}
+          >
+            {s.zeichen}
+          </button>
+        )
+      })}
+    </span>
+  )
+}
+
+function Antworten({ e, t, bewerten }: { e: AufgabeErgebnis; t: AufgabeTeilnehmer; bewerten: Bewerten }) {
   return (
     <ol className="flex flex-col gap-2 rounded-2xl bg-quizzo-navy-light/70 p-4 text-lg">
       {e.fragen.map((f, n) => {
         if (f.typ === 'folie') return null
         const a = t.antworten.find((x) => x.frage_nr === n)
-        const z = FRAGETYPEN[f.typ].bewertet || a?.zu_spaet ? zeichen(a?.anteil, a?.zu_spaet) : null
+        const z = wartetAufBewertung(f, a) ? WARTET : mitPunkten(f) || a?.zu_spaet ? zeichen(a?.anteil, a?.zu_spaet) : null
         return (
           <li key={n} className="grid grid-cols-[2rem_1fr] gap-2">
             <span className="text-white/50">{n + 1}.</span>
             <span>
-              <span className="text-white/70">{f.text}</span>
+              <span className="text-white/70">{f.text}</span>{vonHand(f) && <span className="text-white/50"> · von Hand, {f.punkte === 2 ? 'doppelte' : 'normale'} Punkte</span>}
               <br />
               {a ? (
                 <>
@@ -344,6 +391,8 @@ function Antworten({ e, t }: { e: AufgabeErgebnis; t: AufgabeTeilnehmer }) {
                   <span className="font-semibold whitespace-pre-wrap">{antwortAlsText(f, a.antwort)}</span>
                   {a.zu_spaet && <span className="text-red-300"> {a.antwort === null ? 'Zeit abgelaufen' : '(zu spät)'}</span>}
                   {a.punkte > 0 && <span className="text-white/60"> · {a.punkte} Punkte</span>}
+                  {a.von_hand && <span className="text-white/50"> (von dir bewertet)</span>}
+                  {vonHandBewertbar(f, a) && <BewertenKnoepfe f={f} a={a} nr={n} bewerten={(anteil) => bewerten(t, n, anteil)} />}
                 </>
               ) : (
                 <span className="text-white/40">keine Antwort</span>

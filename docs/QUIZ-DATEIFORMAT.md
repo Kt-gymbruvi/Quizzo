@@ -33,7 +33,7 @@ Gemeinsame Felder jeder Frage:
 | `zuordnung` | `paare`: 2–6 Paare `{ "links", "rechts" }` | `"paare": [{ "links": "Hund", "rechts": "bellt" }]` |
 | `umfrage` | `antworten`: 2–6 Texte (keine Punkte) | `"antworten": ["Gut", "Geht so"]` |
 | `wortwolke` | – (keine Punkte) | |
-| `offen` (Offene Frage) | – (keine Punkte) | |
+| `offen` (Offene Frage) | optional `lang: true` (bis 1000 statt 250 Zeichen) und `von_hand: true` (in Hausaufgabe/Prüfung bewertet die Lehrkraft; dann `punkte` 1 oder 2), sonst keine Punkte | `"von_hand": true, "lang": true, "punkte": 2` |
 | `schieberegler` | `min`, `max`, `schritt`, `richtig`, `toleranz`, optional `einheit` | `"min": 1900, "max": 2000, "schritt": 1, "richtig": 1989, "toleranz": 2` |
 | `folie` (Präsentationsfolie) | `folientext` (optional, max. 1000 Zeichen) | `"folientext": "Jetzt kommt Teil 2."` |
 | `kategorien` (Kategorisieren) | `kategorien`: 2–4 Gruppennamen (max. 40 Zeichen); `begriffe`: 2–12 `{ "text", "kategorie" }` (Gruppe als Position ab 0 oder als Name) | `"kategorien": ["Säugetier", "Vogel"], "begriffe": [{ "text": "Wal", "kategorie": 0 }]` |

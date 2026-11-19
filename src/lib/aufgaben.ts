@@ -1,5 +1,5 @@
 import { db } from './supabase.ts'
-import { FRAGETYPEN, type FrageTyp } from './fragetypen.ts'
+import { mitPunkten, vonHand, type FrageTyp } from './fragetypen.ts'
 import type { SchuelerFrage } from './spiel.ts'
 
 // Aufgaben ohne Live-Spiel: Selbstlernen, Hausaufgabe, Prüfung (siehe supabase/migrations/007_aufgaben.sql)
@@ -46,7 +46,16 @@ export type AufgabeUebersicht = {
 }
 
 export type AufgabeFrage = { typ: FrageTyp; text: string; inhalt: Record<string, unknown>; punkte: number; zeitlimit?: number }
-export type AufgabeAntwort = { frage_nr: number; antwort: unknown; anteil: number; punkte: number; /** Zeitlimit überschritten */ zu_spaet?: boolean }
+export type AufgabeAntwort = {
+  frage_nr: number
+  antwort: unknown
+  anteil: number
+  punkte: number
+  /** Zeitlimit überschritten */
+  zu_spaet?: boolean
+  /** von der Lehrkraft bewertet */
+  von_hand?: boolean
+}
 export type AufgabeTeilnehmer = {
   id: string
   spitzname: string | null
@@ -117,6 +126,14 @@ export const erstelleAufgabe = (quizId: string, modus: Aufgabenmodus, frist: Dat
 export const ladeAufgaben = () => aufruf<AufgabeUebersicht[]>('aufgaben_liste', {})
 export const ladeErgebnisse = (id: string) => aufruf<AufgabeErgebnis | null>('aufgabe_ergebnisse', { p_aufgabe: id })
 export const schliesseAufgabe = (id: string) => aufruf<void>('aufgabe_schliessen', { p_aufgabe: id })
+/** Antwort von Hand bewerten (offene Frage mit Bewertung, Freitext): 0 falsch, 0.5 halb, 1 richtig */
+export const bewerteAntwort = (teilnehmerId: string, frageNr: number, anteil: 0 | 0.5 | 1) =>
+  aufruf<{ anteil: number; punkte: number }>('aufgabe_bewerten', { p_teilnehmer: teilnehmerId, p_frage_nr: frageNr, p_anteil: anteil })
+/** Kann die Lehrkraft diese Antwort von Hand bewerten? */
+export const vonHandBewertbar = (f: AufgabeFrage, a: AufgabeAntwort | undefined) =>
+  !!a && a.antwort !== null && a.antwort !== undefined && (f.typ === 'freitext' || vonHand(f))
+/** Offene Antwort, die noch auf die Bewertung der Lehrkraft wartet */
+export const wartetAufBewertung = (f: AufgabeFrage, a: AufgabeAntwort | undefined) => vonHandBewertbar(f, a) && f.typ === 'offen' && !a!.von_hand
 export const gibCodeFrei = (teilnehmerId: string) => aufruf<void>('pruefung_code_freigeben', { p_teilnehmer: teilnehmerId })
 export async function loescheAufgabe(id: string) {
   const { error } = await db().from('aufgaben').delete().eq('id', id)
@@ -183,7 +200,7 @@ export function merkeAufgabe(code: string, t: AufgabeTeilnahme | null) {
 // --- Auswertung ---
 
 /** Höchstpunktzahl einer Frage (0 bei Umfrage, Folie usw.). */
-export const hoechstpunkte = (f: AufgabeFrage) => (FRAGETYPEN[f.typ].bewertet ? 1000 * f.punkte : 0)
+export const hoechstpunkte = (f: AufgabeFrage) => (mitPunkten(f) ? 1000 * f.punkte : 0)
 
 /** Lesbare Darstellung einer abgegebenen Antwort für die Lehrkraft. */
 export function antwortAlsText(f: AufgabeFrage, a: unknown): string {
@@ -238,7 +255,8 @@ export function ergebnisCsv(e: AufgabeErgebnis): string {
         if (!a) return ''
         if (a.zu_spaet && (a.antwort === null || a.antwort === undefined)) return 'Zeit abgelaufen'
         if (a.zu_spaet) return `zu spät (${antwortAlsText(f, a.antwort)})`
-        return FRAGETYPEN[f.typ].bewertet ? `${Math.round(a.anteil * 100)} % (${antwortAlsText(f, a.antwort)})` : antwortAlsText(f, a.antwort)
+        if (wartetAufBewertung(f, a)) return `nicht bewertet (${antwortAlsText(f, a.antwort)})`
+        return mitPunkten(f) ? `${Math.round(a.anteil * 100)} % (${antwortAlsText(f, a.antwort)})` : antwortAlsText(f, a.antwort)
       }),
     ])
   return '﻿' + [kopf, ...zeilen].map((z) => z.map(zelle).join(';')).join('\r\n')

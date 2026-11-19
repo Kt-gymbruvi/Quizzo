@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { ANTWORT_STIL, FALSCH_STIL, WAHR_STIL } from '../../../lib/antwortStil.ts'
-import { GRENZEN, MAX_ABLENKER, MAX_ANTWORTEN, MAX_BEGRIFFE, MAX_KATEGORIEN, lueckenAus, type Frage, type Inhalte } from '../../../lib/fragetypen.ts'
+import { GRENZEN, MAX_ABLENKER, MAX_ANTWORTEN, MAX_BEGRIFFE, MAX_KATEGORIEN, lueckenAus, offenMaxZeichen, type Frage, type Inhalte } from '../../../lib/fragetypen.ts'
 import { DATEI_REGELN, ladeHoch } from '../../../lib/medien.ts'
 import { fehlerText } from '../../../lib/supabase.ts'
 import { HotspotBild } from '../../../spiel/HotspotBild.tsx'
@@ -56,8 +56,27 @@ export function FrageFelder({
     case 'wortwolke':
       return <Hinweis>Schüler tippen ein bis zwei Wörter (bis 25 Zeichen). Häufige Begriffe erscheinen am Beamer größer. Keine Punkte.</Hinweis>
     case 'offen':
-      return <Hinweis>Schüler schreiben eine längere Antwort (bis 250 Zeichen). Die Antworten erscheinen am Beamer, einzelne kannst du ausblenden. Keine Punkte.</Hinweis>
+      return <OffenFelder nr={nr} inhalt={frage.inhalt} setze={setzeInhalt} />
   }
+}
+
+function OffenFelder({ nr, inhalt, setze }: { nr: number; inhalt: Inhalte['offen']; setze: (i: Inhalte['offen']) => void }) {
+  return (
+    <div className="flex flex-col gap-3">
+      <Hinweis>
+        Schüler schreiben eine längere Antwort (bis {offenMaxZeichen(inhalt)} Zeichen). Im Live-Spiel erscheinen die Antworten am Beamer, einzelne kannst du
+        ausblenden – dort gibt es keine Punkte.
+      </Hinweis>
+      <label className="flex items-center gap-3 text-lg">
+        <input type="checkbox" className="size-6" checked={!!inhalt.lang} onChange={(e) => setze({ ...inhalt, lang: e.target.checked })} aria-label={`Lange Antworten Frage ${nr}`} />
+        Lange Antworten erlauben (bis 1000 Zeichen)
+      </label>
+      <label className="flex items-center gap-3 text-lg">
+        <input type="checkbox" className="size-6" checked={!!inhalt.von_hand} onChange={(e) => setze({ ...inhalt, von_hand: e.target.checked })} aria-label={`Von Hand bewerten Frage ${nr}`} />
+        In Hausaufgabe und Prüfung von Hand bewerten (✗ / ½ / ✓, mit Punkten)
+      </label>
+    </div>
+  )
 }
 
 function Hinweis({ children }: { children: ReactNode }) {

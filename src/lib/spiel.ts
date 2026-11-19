@@ -14,6 +14,8 @@ export type Ansicht = {
   antworten?: string[]
   mehrfach?: boolean
   max_zeichen?: number
+  /** offene Frage: die Lehrkraft bewertet sie (Hausaufgabe/Prüfung) */
+  von_hand?: boolean
   elemente?: string[]
   links?: string[]
   rechts?: string[]

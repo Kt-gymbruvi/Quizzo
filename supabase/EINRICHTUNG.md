@@ -116,6 +116,11 @@ Inhalt von [`migrations/015_klassen_challenge.sql`](migrations/015_klassen_chall
 **bevor** die neue App-Version veröffentlicht wird (sonst lehnt die Datenbank den neuen Spielmodus ab).
 Die alte App-Version funktioniert danach weiter.
 
+## 19. Offene Antworten von Hand bewerten (Etappe 18)
+Inhalt von [`migrations/016_von_hand_bewerten.sql`](migrations/016_von_hand_bewerten.sql) im **SQL Editor** ausführen –
+**bevor** die neue App-Version veröffentlicht wird (sonst klappt das Bewerten nicht und lange Antworten werden abgelehnt).
+Die alte App-Version funktioniert danach weiter.
+
 ## Weitere Lehrkräfte
 - **Am einfachsten:** wie in Schritt 5 ein Konto mit Startpasswort anlegen. Die Lehrkraft ändert es nach der ersten Anmeldung über „Passwort ändern“.
 - **Per E-Mail-Einladung** (Users → Add user → Send invitation): Der eingebaute E-Mail-Versand von Supabase schickt nur an Mitglieder deines Supabase-Teams und nur wenige Mails pro Stunde. Für Einladungen an Kolleginnen und Kollegen muss vorher ein eigener SMTP-Server eingetragen werden (Authentication → Emails → SMTP Settings). Das gilt genauso für „Passwort vergessen?“.

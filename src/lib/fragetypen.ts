@@ -9,7 +9,8 @@ export type Inhalte = {
   zuordnung: { paare: { links: string; rechts: string }[] }
   umfrage: { antworten: string[] }
   wortwolke: Record<string, never>
-  offen: Record<string, never>
+  /** lang: bis 1000 statt 250 Zeichen; von_hand: Lehrkraft bewertet in Hausaufgabe/Prüfung (mit Punkten) */
+  offen: { lang?: boolean; von_hand?: boolean }
   schieberegler: { min: number; max: number; schritt: number; richtig: number; toleranz: number; einheit?: string }
   folie: { text: string }
   kategorien: { kategorien: string[]; begriffe: { text: string; kategorie: number }[] }
@@ -44,6 +45,14 @@ export type Frage = {
   [T in FrageTyp]: { typ: T; text: string; zeitlimit: number; punkte: Punkte; inhalt: Inhalte[T]; medium?: Medium | null; schwierigkeit?: Schwierigkeit | null }
 }[FrageTyp]
 
+/** Offene Frage, die die Lehrkraft in Hausaufgabe/Prüfung von Hand bewertet */
+export const vonHand = (f: { typ: FrageTyp; inhalt?: unknown }) =>
+  f.typ === 'offen' && (f.inhalt as { von_hand?: unknown } | null | undefined)?.von_hand === true
+/** Bringt die Frage Punkte – automatisch bewertet oder von Hand? */
+export const mitPunkten = (f: { typ: FrageTyp; inhalt?: unknown }) => FRAGETYPEN[f.typ].bewertet || vonHand(f)
+/** Höchstlänge der Antwort einer offenen Frage (wie offen_max_zeichen() in der Datenbank) */
+export const offenMaxZeichen = (inhalt: unknown) => ((inhalt as { lang?: unknown } | null)?.lang === true ? 1000 : 250)
+
 export const ZEITLIMITS = [5, 10, 20, 30, 45, 60, 90, 120, 180, 240] as const
 export const MAX_ANTWORTEN = 6
 
@@ -58,7 +67,7 @@ export const FRAGETYPEN: Record<FrageTyp, TypInfo> = {
   schieberegler: { name: 'Schieberegler', beschreibung: 'Zahl schätzen – je näher, desto mehr Punkte', symbol: '⟷', bewertet: true, zeitlimit: 20 },
   umfrage: { name: 'Umfrage', beschreibung: 'Meinung abfragen, ohne Punkte', symbol: '📊', bewertet: false, zeitlimit: 20 },
   wortwolke: { name: 'Wortwolke', beschreibung: 'Kurze Begriffe sammeln, ohne Punkte', symbol: '☁', bewertet: false, zeitlimit: 30 },
-  offen: { name: 'Offene Frage', beschreibung: 'Längere Antworten sammeln, ohne Punkte', symbol: '✎', bewertet: false, zeitlimit: 90 },
+  offen: { name: 'Offene Frage', beschreibung: 'Längere Antworten sammeln – ohne Punkte oder von dir bewertet', symbol: '✎', bewertet: false, zeitlimit: 90 },
   folie: { name: 'Präsentationsfolie', beschreibung: 'Information zeigen, ohne Antwort', symbol: '▭', bewertet: false, zeitlimit: 20 },
   kategorien: { name: 'Kategorisieren', beschreibung: 'Begriffe in 2–4 Gruppen sortieren', symbol: '🗂', bewertet: true, zeitlimit: 60 },
   lueckentext: { name: 'Lückentext', beschreibung: 'Lücken im Text füllen – eintippen oder auswählen', symbol: '▁', bewertet: true, zeitlimit: 60 },
@@ -141,7 +150,8 @@ const eindeutig = (liste: string[]) => new Set(liste.map((s) => s.trim().toLower
 export function bereinigeFrage(f: Frage): Frage {
   const medium = bereinigeMedium(f.medium)
   const schwierigkeit = FRAGETYPEN[f.typ].bewertet ? alsSchwierigkeit(f.schwierigkeit) : null
-  const basis = { text: t(f.text), zeitlimit: f.zeitlimit, punkte: FRAGETYPEN[f.typ].bewertet ? f.punkte : 0, ...(medium ? { medium } : {}), ...(schwierigkeit ? { schwierigkeit } : {}) }
+  const punkte = vonHand(f) ? f.punkte || 1 : FRAGETYPEN[f.typ].bewertet ? f.punkte : 0
+  const basis = { text: t(f.text), zeitlimit: f.zeitlimit, punkte: punkte as Punkte, ...(medium ? { medium } : {}), ...(schwierigkeit ? { schwierigkeit } : {}) }
   switch (f.typ) {
     case 'auswahl': {
       const antworten: string[] = []
@@ -197,6 +207,8 @@ export function bereinigeFrage(f: Frage): Frage {
         },
       }
     }
+    case 'offen':
+      return { ...basis, typ: 'offen', inhalt: { ...(f.inhalt.lang ? { lang: true } : {}), ...(f.inhalt.von_hand ? { von_hand: true } : {}) } }
     default:
       return { ...basis, typ: f.typ, inhalt: f.inhalt } as Frage
   }
@@ -399,13 +411,17 @@ function importiereFrage(r: Roh): Frage {
   basis.text = typeof r.text === 'string' ? r.text : ''
   basis.zeitlimit = Math.min(240, Math.max(5, Math.round(zahl(r.zeitlimit, basis.zeitlimit))))
   const p = zahl(r.punkte, basis.punkte)
-  basis.punkte = (FRAGETYPEN[typ].bewertet ? ([0, 1, 2].includes(p) ? p : 1) : 0) as Punkte
+  const importVonHand = typ === 'offen' && r.von_hand === true
+  basis.punkte = (importVonHand ? (p === 2 ? 2 : 1) : FRAGETYPEN[typ].bewertet ? ([0, 1, 2].includes(p) ? p : 1) : 0) as Punkte
   const medium = importiereMedium(r.medium)
   if (medium) basis.medium = bereinigeMedium(medium)
   const schwierigkeit = FRAGETYPEN[typ].bewertet ? alsSchwierigkeit(r.schwierigkeit) : null
   if (schwierigkeit) basis.schwierigkeit = schwierigkeit
 
   switch (basis.typ) {
+    case 'offen':
+      basis.inhalt = { ...(r.lang === true ? { lang: true } : {}), ...(importVonHand ? { von_hand: true } : {}) }
+      break
     case 'auswahl': {
       basis.inhalt.antworten = texte(r.antworten)
       const richtig = Array.isArray(r.richtig) ? r.richtig : [r.richtig]

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Knopf, LehrkraftKopf, Meldung, ZurueckLink } from '../../components.tsx'
-import { FRAGETYPEN, SCHWIERIGKEITEN, TYP_REIHENFOLGE, ZEITLIMITS, neueFrage, pruefeQuiz, wechsleTyp, type Frage, type FrageTyp, type Punkte, type Schwierigkeit } from '../../lib/fragetypen.ts'
+import { FRAGETYPEN, SCHWIERIGKEITEN, TYP_REIHENFOLGE, ZEITLIMITS, mitPunkten, neueFrage, pruefeQuiz, vonHand, wechsleTyp, type Frage, type FrageTyp, type Punkte, type Schwierigkeit } from '../../lib/fragetypen.ts'
 import { ladeQuiz, speichereQuiz } from '../../lib/quizze.ts'
 import { fehlerText } from '../../lib/supabase.ts'
 import { FrageFelder } from './editor/FrageFelder.tsx'
@@ -159,13 +159,13 @@ export default function QuizEditor() {
                       </select>
                     </label>
                   )}
-                  {info.bewertet && (
+                  {mitPunkten(f) && (
                     <label className="flex items-center gap-2 text-lg">
                       Punkte
-                      <select value={f.punkte} onChange={(e) => aendere(fi, { ...f, punkte: Number(e.target.value) as Punkte })} className={auswahlStil} aria-label={`Punkte Frage ${fi + 1}`}>
+                      <select value={vonHand(f) ? f.punkte || 1 : f.punkte} onChange={(e) => aendere(fi, { ...f, punkte: Number(e.target.value) as Punkte })} className={auswahlStil} aria-label={`Punkte Frage ${fi + 1}`}>
                         <option value={1}>normal</option>
                         <option value={2}>doppelt</option>
-                        <option value={0}>keine</option>
+                        {!vonHand(f) && <option value={0}>keine</option>}
                       </select>
                     </label>
                   )}

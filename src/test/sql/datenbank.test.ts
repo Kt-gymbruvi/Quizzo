@@ -945,6 +945,61 @@ describe('Datenbank', () => {
       })
     })
 
+    describe('Von Hand bewerten (offene Fragen, Freitext)', () => {
+      type Antwort = { frage_nr: number; anteil: number; punkte: number; von_hand: boolean }
+      it('Lehrkraft bewertet offene Antworten und Freitext; Punkte werden neu berechnet', async () => {
+        const fragen = [
+          { typ: 'offen', text: 'Erkläre die Fotosynthese.', zeitlimit: 90, punkte: 2, inhalt: { lang: true, von_hand: true } },
+          { typ: 'freitext', text: 'Hauptstadt von Italien?', zeitlimit: 30, punkte: 1, inhalt: { loesungen: ['Rom'] } },
+          { typ: 'offen', text: 'Was denkst du?', zeitlimit: 90, punkte: 0, inhalt: {} },
+          { typ: 'auswahl', text: '2+2?', zeitlimit: 20, punkte: 1, inhalt: { antworten: ['3', '4'], richtig: [1] } },
+        ]
+        const qid = await rpc<string>(db, A, 'quiz_speichern', [null, 'Bio offen', json(fragen)])
+        const auf = await rpc<Erstellt>(db, A, 'aufgabe_erstellen', [qid, 'hausaufgabe', inTagen(2), null])
+        const b = await rpc<Beitritt>(db, ANONYM, 'aufgabe_beitreten', [auf.code, 'Otter'])
+        const z = await rpc<{ fragen: { ansicht: { max_zeichen: number; von_hand: boolean } }[] }>(db, ANONYM, 'aufgabe_zustand', [b.teilnehmer_id, b.token])
+        expect(z.fragen[0].ansicht).toEqual({ max_zeichen: 1000, von_hand: true })
+        expect(z.fragen[2].ansicht).toEqual({ max_zeichen: 250, von_hand: false })
+
+        const lang = 'Pflanzen machen aus Licht, Wasser und CO2 Zucker. '.repeat(10)
+        expect(await antworten(auf.code, b, 0, lang)).toMatchObject({ anteil: 0, punkte: 0 })
+        await expect(antworten(auf.code, b, 2, lang)).rejects.toThrow('Ungültige Antwort') // ohne „lang“ höchstens 250 Zeichen
+        await antworten(auf.code, b, 1, 'Roma')
+        await antworten(auf.code, b, 2, 'Spannend')
+        await antworten(auf.code, b, 3, [1])
+
+        const teilnehmer = async () => (await rpc<Ergebnis>(db, A, 'aufgabe_ergebnisse', [auf.id])).teilnehmer[0] as Ergebnis['teilnehmer'][number] & { antworten: Antwort[] }
+        let t = await teilnehmer()
+        expect(t.punkte).toBe(1000)
+        expect(t.antworten[0]).toMatchObject({ anteil: 0, von_hand: false })
+
+        // fremde Lehrkraft, Schüler, falsche Werte, nicht bewertbare Fragen
+        await expect(rpc(db, B, 'aufgabe_bewerten', [t.id, 0, 1])).rejects.toThrow('gibt es nicht')
+        await expect(rpc(db, ANONYM, 'aufgabe_bewerten', [t.id, 0, 1])).rejects.toThrow(/permission denied/)
+        await expect(rpc(db, A, 'aufgabe_bewerten', [t.id, 0, 0.7])).rejects.toThrow('falsch, halb oder richtig')
+        await expect(rpc(db, A, 'aufgabe_bewerten', [t.id, 2, 1])).rejects.toThrow('nicht von Hand bewerten') // offen ohne von_hand
+        await expect(rpc(db, A, 'aufgabe_bewerten', [t.id, 3, 1])).rejects.toThrow('nicht von Hand bewerten') // Multiple Choice
+
+        expect(await rpc(db, A, 'aufgabe_bewerten', [t.id, 0, 0.5])).toEqual({ anteil: 0.5, punkte: 1000 }) // doppelte Punkte, halb
+        expect(await rpc(db, A, 'aufgabe_bewerten', [t.id, 1, 1])).toEqual({ anteil: 1, punkte: 1000 }) // Tippfehler gelten lassen
+        t = await teilnehmer()
+        expect(t.punkte).toBe(3000)
+        expect(t.antworten[0]).toMatchObject({ anteil: 0.5, punkte: 1000, von_hand: true })
+        // umentscheiden: Punkte werden ersetzt, nicht addiert
+        await rpc(db, A, 'aufgabe_bewerten', [t.id, 0, 1])
+        expect((await teilnehmer()).punkte).toBe(4000)
+        const zs = await rpc<Zustand>(db, ANONYM, 'aufgabe_zustand', [b.teilnehmer_id, b.token])
+        expect(zs.punkte).toBe(4000)
+        expect(zs.antworten[0]).toMatchObject({ anteil: 1, punkte: 2000 })
+      })
+      it('ohne Antwort gibt es nichts zu bewerten', async () => {
+        const qid = await rpc<string>(db, A, 'quiz_speichern', [null, 'Leer', json([{ typ: 'offen', text: 'Warum?', zeitlimit: 90, punkte: 1, inhalt: { von_hand: true } }])])
+        const auf = await rpc<Erstellt>(db, A, 'aufgabe_erstellen', [qid, 'pruefung', inTagen(1), 1])
+        const t = (await rpc<Ergebnis>(db, A, 'aufgabe_ergebnisse', [auf.id])).teilnehmer[0]
+        await expect(rpc(db, A, 'aufgabe_bewerten', [t.id, 0, 1])).rejects.toThrow('keine Antwort')
+      })
+    })
+
     describe('Rechte und automatisches Löschen', () => {
       it('Schüler haben keinen Tabellenzugriff, fremde Lehrkräfte sehen nichts', async () => {
         for (const t of ['aufgaben', 'aufgabe_teilnehmer', 'aufgabe_antworten', 'aufgabe_statistik']) {

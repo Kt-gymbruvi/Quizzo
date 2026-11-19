@@ -26,7 +26,7 @@ Stand: November 2026. ✅ = fertig, 🔨 = in Arbeit, ⏳ = geplant
 | 4 | Puzzle/Sortieren (richtige Reihenfolge) | `reihenfolge` | ja | 4 |
 | 5 | Zuordnung (Paare verbinden, Teilpunkte) | `zuordnung` | ja | 4 |
 | 6 | Umfrage und Wortwolke | `umfrage`, `wortwolke` | nein | 4 |
-| 7 | Offene Frage (längere Antwort) | `offen` | nein | 4 |
+| 7 | Offene Frage (längere Antwort; optional bis 1000 Zeichen und in Hausaufgabe/Prüfung von Hand bewertet) | `offen` | nein / von Hand | 4, 18 |
 | 8 | Schieberegler (Zahl schätzen, je näher desto mehr Punkte) | `schieberegler` | ja | 4 |
 | 9 | Präsentationsfolie (Info ohne Antwort) | `folie` | nein | 4 |
 | 10 | Audio und Video (sowie Bilder zu Fragen) – nur am Beamer | Spalte `medium` | – | 5 |
@@ -36,6 +36,10 @@ Stand: November 2026. ✅ = fertig, 🔨 = in Arbeit, ⏳ = geplant
 
 Etappe 5: Bild, Audio, Video hochladen (Supabase Storage, Bilder automatisch verkleinert) oder YouTube-Link (datensparsam über youtube-nocookie), jeweils mit optionalem Ausschnitt (von/bis). Unbenutzte Dateien werden automatisch gelöscht.
 Ideen für später: Medien auch auf den Handys anzeigen (Schalter pro Frage), Countdown erst nach dem Abspielen starten, Bilder als Antworten.
+
+Etappe 18 (SQL `016`, noch nicht veröffentlicht): offene Fragen mit „Lange Antworten“ (1000 Zeichen) und „Von Hand bewerten“ –
+in Hausaufgabe und Prüfung bewertet die Lehrkraft jede Antwort mit ✗ / ½ / ✓ (normale oder doppelte Punkte), auch Freitext-Antworten
+lassen sich nachträglich umbewerten (z. B. Tippfehler). Wartende Antworten zeigt die Ergebnistabelle mit „?“. Im Live-Spiel ohne Punkte.
 
 Außerdem in Etappe 4: Punkte pro Frage (keine/normal/doppelt), Quiz importieren/exportieren (JSON, siehe `docs/QUIZ-DATEIFORMAT.md`), Quiz und einzelne Fragen kopieren.
 

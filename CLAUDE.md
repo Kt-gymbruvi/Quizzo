@@ -43,6 +43,7 @@ Schwesterprojekte (eigene Repos, gleiche Supabase-Datenbank): Klassenfunk (`../K
 - Die Startseite kt-gymbruvi.github.io (eigenes Repository, Ordner `Kt-gymbruvi.github.io`) liest die Ordnung ihrer Lernangebote aus `lernangebote` (Migration 009): lesen darf jeder (ohne `besitzer_id`), ändern nur die Lehrkraft, der der Eintrag gehört.
 - Medien liegen im Storage-Bucket `quizzo-medien` (öffentlich lesbar, Schreiben nur im Ordner `<auth.uid()>/`); Fragen verweisen darauf über `fragen.medium`. Medien nur am Beamer, nie in `spiel_zustand_schueler` – einzige Ausnahme: das Bild einer Hotspot-Frage (`inhalt.bild`, Teil der Frage). Unbenutzte Dateien löscht `raeumeMedienAuf()` (src/lib/medien.ts), auch Hotspot-Bilder zählen als benutzt.
 - Fragetypen seit Migration 014: zusätzlich `kategorien`, `lueckentext` (Lücken als `[Lösung|Alternative]`), `hotspot` (Ziel in Prozent); Teilpunkte bei Kategorisieren/Lückentext.
+- Offene Fragen (Migration 016): `inhalt.lang` (1000 statt 250 Zeichen) und `inhalt.von_hand` – dann bewertet die Lehrkraft in Hausaufgabe/Prüfung mit `aufgabe_bewerten` (0 / 0.5 / 1, auch Freitext), `aufgabe_antworten.von_hand` merkt es; im Live-Spiel keine Punkte. Hilfsfunktionen `vonHand`/`mitPunkten` in `src/lib/fragetypen.ts`.
 
 ## Fahrplan
 - Geplante Fragetypen und Spielmodi stehen in `FAHRPLAN.md` (dort nach jeder Etappe den Stand aktualisieren).

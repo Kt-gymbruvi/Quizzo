@@ -143,7 +143,7 @@ function TextEingabe({ mehrzeilig, maxZeichen, platzhalter, senden }: { mehrzeil
       }}
     >
       {mehrzeilig ? (
-        <textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={maxZeichen} rows={4} placeholder={platzhalter} aria-label="Antwort" className={`${feld} resize-none !text-xl !font-semibold`} />
+        <textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={maxZeichen} rows={maxZeichen > 250 ? 7 : 4} placeholder={platzhalter} aria-label="Antwort" className={`${feld} resize-none !text-xl !font-semibold`} />
       ) : (
         <input value={text} onChange={(e) => setText(e.target.value)} maxLength={maxZeichen} placeholder={platzhalter} autoComplete="off" aria-label="Antwort" className={feld} />
       )}

@@ -468,7 +468,9 @@ function RueckmeldungAnzeige({ r, modus, weiter, letzte }: { r: Rueckmeldung; mo
           Richtig ist: <b>{loesung}</b>
         </div>
       )}
-      {!bewertet && !r.zuSpaet && <p className="text-xl">Deine Antwort ist gespeichert.</p>}
+      {!bewertet && !r.zuSpaet && (
+        <p className="text-xl">{r.frage.ansicht.von_hand ? 'Deine Antwort ist gespeichert. Deine Lehrkraft bewertet sie.' : 'Deine Antwort ist gespeichert.'}</p>
+      )}
       <Knopf onClick={weiter} className="mt-2 !py-4 !text-2xl">
         {letzte ? 'Fertig' : 'Nächste Frage'}
       </Knopf>
