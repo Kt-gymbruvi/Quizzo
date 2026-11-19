@@ -8,6 +8,7 @@ import { TEAMS } from '../../lib/teams.ts'
 const MODI: { modus: Spielmodus; name: string; text: string; symbol: string }[] = [
   { modus: 'klassisch', name: 'Klassisch', text: 'Jede und jeder spielt für sich. Bestenliste nach jeder Frage.', symbol: '🏆' },
   { modus: 'team', name: 'Team', text: 'Alle werden automatisch auf Teams verteilt. Es zählt der Punkteschnitt des Teams.', symbol: '🤝' },
+  { modus: 'challenge', name: 'Klassen-Challenge', text: 'Alle gemeinsam gegen das Quiz: Statt Plätzen zählt, wie viel die ganze Klasse richtig hat (Medaillen bei 50/70/90 %).', symbol: '🎯' },
 ]
 
 export function SpielStarten({
@@ -57,7 +58,7 @@ export function SpielStarten({
           <p className="mt-1 text-xl text-white/70 break-words">{titel}</p>
         </div>
 
-        <fieldset className="grid gap-4 sm:grid-cols-2">
+        <fieldset className="grid gap-4 sm:grid-cols-3">
           <legend className="sr-only">Spielmodus</legend>
           {MODI.map((m) => (
             <label

@@ -683,6 +683,37 @@ describe('Datenbank', () => {
     })
   })
 
+  describe('Klassen-Challenge (alle gemeinsam, ohne Plätze)', () => {
+    type Klasse = { prozent: number; fragen: number; letzte: number | null }
+    it('Fortschritt = Durchschnitt der Klasse über die aufgelösten Fragen; keine Plätze', async () => {
+      await expect(rpc(db, A, 'spiel_erstellen', [quizId, 'challenge', 3])).resolves.toBeTruthy() // Teamzahl wird ignoriert
+      const spiel = await rpc<{ id: string; pin: string }>(db, A, 'spiel_erstellen', [quizId, 'challenge', null])
+      const a = await rpc<Beitritt>(db, ANONYM, 'spiel_beitreten', [spiel.pin, 'Ameise'])
+      const b = await rpc<Beitritt>(db, ANONYM, 'spiel_beitreten', [spiel.pin, 'Biber'])
+      const lehrkraft = () => rpc<{ modus: string; klasse: Klasse; teams: unknown }>(db, A, 'spiel_zustand_lehrkraft', [spiel.id])
+      const schueler = (x: Beitritt) => rpc<SchuelerZustand & { klasse: Klasse }>(db, ANONYM, 'spiel_zustand_schueler', [x.spieler_id, x.token])
+      expect(await lehrkraft()).toMatchObject({ modus: 'challenge', teams: null, klasse: { prozent: 0, fragen: 0 } })
+
+      await rpc(db, A, 'spiel_steuern', [spiel.id, 'weiter'])
+      await rpc(db, ANONYM, 'antwort_abgeben', [a.spieler_id, a.token, 0, json([1])])
+      await rpc(db, ANONYM, 'antwort_abgeben', [b.spieler_id, b.token, 0, json([0])])
+      await rpc(db, A, 'spiel_steuern', [spiel.id, 'aufloesen'])
+      expect((await lehrkraft()).klasse).toEqual({ prozent: 50, fragen: 1, letzte: 50 })
+
+      await rpc(db, A, 'spiel_steuern', [spiel.id, 'weiter'])
+      await rpc(db, ANONYM, 'antwort_abgeben', [a.spieler_id, a.token, 1, json(true)])
+      expect((await lehrkraft()).klasse.fragen).toBe(1) // laufende Frage zählt noch nicht
+      await rpc(db, A, 'spiel_steuern', [spiel.id, 'aufloesen'])
+      const z = await schueler(b)
+      expect(z.klasse).toEqual({ prozent: 50, fragen: 2, letzte: 50 }) // Biber ohne Antwort = 0
+      expect(z.platz).toBeNull()
+      const klassisch = await rpc<{ pin: string }>(db, A, 'spiel_erstellen', [quizId])
+      const c = await rpc<Beitritt>(db, ANONYM, 'spiel_beitreten', [klassisch.pin, 'Chamäleon'])
+      expect(await schueler(c)).toMatchObject({ platz: 1, klasse: null })
+      await expect(als(db, A, 'select public.klassen_fortschritt($1)', [spiel.id])).rejects.toThrow(/permission denied/)
+    })
+  })
+
   describe('Aufgaben: Selbstlernen, Hausaufgabe, Prüfung', () => {
     type Erstellt = { id: string; code: string }
     type Oeffnen = { modus: string; titel: string; offen: boolean; anzahl_fragen: number; fragen: { typ: string; ansicht: unknown }[] | null }

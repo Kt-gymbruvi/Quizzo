@@ -19,6 +19,7 @@ import {
   type LehrkraftZustand,
 } from '../../lib/spiel.ts'
 import { TEAMS, team, teamName } from '../../lib/teams.ts'
+import { KlassenBalken, medailleFuer, naechsteMedaille } from '../../spiel/KlassenBalken.tsx'
 import { ladeQuizze, type QuizUebersicht } from '../../lib/quizze.ts'
 import { fehlerText } from '../../lib/supabase.ts'
 
@@ -216,6 +217,11 @@ function Lobby({
             Spiel starten
           </Knopf>
         </div>
+        {z.modus === 'challenge' && (
+          <p className="rounded-2xl bg-white/10 px-6 py-4 text-2xl font-bold">
+            🎯 Klassen-Challenge: Alle gemeinsam – Bronze ab 50 %, Silber ab 70 %, Gold ab 90 % richtig.
+          </p>
+        )}
         {z.modus === 'team' && z.anzahl_teams ? (
           <TeamLobby z={z} entfernen={entfernen} teamWechseln={teamWechseln} />
         ) : z.spieler.length === 0 ? (
@@ -424,7 +430,14 @@ function Auswertung({ z, beschaeftigt, weiter }: { z: LehrkraftZustand; beschaef
         <BeamerAuswertung frage={z.frage} antworten={z.antworten} />
         {bewertet && (
           <section className="flex flex-col gap-4">
-            {z.modus === 'team' ? (
+            {z.modus === 'challenge' && z.klasse ? (
+              <>
+                <h3 className="text-3xl font-extrabold text-quizzo-yellow">🎯 Klassen-Challenge</h3>
+                <KlassenBalken klasse={z.klasse} />
+                {typeof z.klasse.letzte === 'number' && <p className="text-2xl text-white/80">Diese Frage: {z.klasse.letzte} % richtig</p>}
+                <ChallengeZiel prozent={z.klasse.prozent} />
+              </>
+            ) : z.modus === 'team' ? (
               <>
                 <h3 className="text-3xl font-extrabold text-quizzo-yellow">Teamwertung</h3>
                 <p className="-mt-2 text-lg text-white/60">Punkteschnitt pro Person</p>
@@ -490,7 +503,38 @@ function TeamEndstand({ z, aktionen }: { z: LehrkraftZustand; aktionen: React.Re
   )
 }
 
+/** Was der Klasse zur nächsten Medaille fehlt */
+function ChallengeZiel({ prozent }: { prozent: number }) {
+  const naechste = naechsteMedaille(prozent)
+  return <p className="text-xl text-white/70">{naechste ? `Noch ${naechste.ab - prozent} % bis ${naechste.zeichen} ${naechste.name}` : 'Gold erreicht – stark!'}</p>
+}
+
+/** Endstand der Klassen-Challenge: Ergebnis der ganzen Klasse, keine Namen */
+function ChallengeEndstand({ z, aktionen }: { z: LehrkraftZustand; aktionen: React.ReactNode }) {
+  const k = z.klasse ?? { prozent: 0, fragen: 0 }
+  const medaille = medailleFuer(k.prozent)
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-8">
+      <h2 className="text-6xl font-black text-quizzo-yellow">{medaille ? `${medaille.name} für die Klasse!` : 'Geschafft!'}</h2>
+      {medaille && (
+        <p className="text-9xl" aria-hidden="true">
+          {medaille.zeichen}
+        </p>
+      )}
+      <div className="w-full max-w-4xl">
+        <KlassenBalken klasse={k} gross />
+      </div>
+      <p className="text-2xl text-white/80">
+        {z.spieler.length} Mitspielende · {k.fragen} {k.fragen === 1 ? 'Frage' : 'Fragen'} mit Wertung
+        {!medaille && ' · Beim nächsten Mal knackt ihr Bronze (50 %)!'}
+      </p>
+      {aktionen}
+    </div>
+  )
+}
+
 function Endstand({ z, aktionen }: { z: LehrkraftZustand; aktionen: React.ReactNode }) {
+  if (z.modus === 'challenge') return <ChallengeEndstand z={z} aktionen={aktionen} />
   if (z.modus === 'team') return <TeamEndstand z={z} aktionen={aktionen} />
   const [erster, zweiter, dritter] = z.spieler
   const stufe = (s: (typeof z.spieler)[number] | undefined, platz: number, hoehe: string) =>

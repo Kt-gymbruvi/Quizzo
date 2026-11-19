@@ -37,7 +37,9 @@ export type Ansicht = {
 export type LehrkraftFrage = Frage & { ansicht: Ansicht }
 export type AbgegebeneAntwort = { antwort: unknown; anteil: number; punkte: number }
 
-export type Spielmodus = 'klassisch' | 'team'
+export type Spielmodus = 'klassisch' | 'team' | 'challenge'
+/** Klassen-Challenge: Fortschritt der ganzen Klasse in Prozent (keine Plätze) */
+export type KlassenFortschritt = { prozent: number; fragen: number; letzte?: number | null }
 
 export type LehrkraftZustand = {
   id: string
@@ -48,6 +50,8 @@ export type LehrkraftZustand = {
   anzahl_teams: number | null
   /** Teamwertung (nur im Teamspiel), beste zuerst */
   teams: TeamWertung | null
+  /** nur in der Klassen-Challenge */
+  klasse?: KlassenFortschritt | null
   status: SpielStatus
   frage_nr: number
   anzahl_fragen: number
@@ -67,12 +71,14 @@ export type SchuelerZustand = {
   anzahl_fragen: number
   spitzname: string
   punkte: number
-  platz: number
+  platz: number | null
   anzahl_spieler: number
   modus: Spielmodus
   runde?: number
   team: number | null
   teams: TeamWertung | null
+  /** nur in der Klassen-Challenge (dann ist platz null) */
+  klasse?: KlassenFortschritt | null
   frage: SchuelerFrage | null
   restzeit_ms: number | null
   meine_antwort: { antwort: unknown; richtig?: boolean; anteil?: number; punkte?: number } | null

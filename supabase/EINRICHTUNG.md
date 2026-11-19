@@ -111,6 +111,11 @@ Inhalt von [`migrations/014_neue_fragetypen.sql`](migrations/014_neue_fragetypen
 **bevor** die neue App-Version veröffentlicht wird (sonst lehnt die Datenbank Quizze mit den neuen Fragetypen ab).
 Die alte App-Version funktioniert danach weiter.
 
+## 18. Klassen-Challenge (Etappe 17)
+Inhalt von [`migrations/015_klassen_challenge.sql`](migrations/015_klassen_challenge.sql) im **SQL Editor** ausführen –
+**bevor** die neue App-Version veröffentlicht wird (sonst lehnt die Datenbank den neuen Spielmodus ab).
+Die alte App-Version funktioniert danach weiter.
+
 ## Weitere Lehrkräfte
 - **Am einfachsten:** wie in Schritt 5 ein Konto mit Startpasswort anlegen. Die Lehrkraft ändert es nach der ersten Anmeldung über „Passwort ändern“.
 - **Per E-Mail-Einladung** (Users → Add user → Send invitation): Der eingebaute E-Mail-Versand von Supabase schickt nur an Mitglieder deines Supabase-Teams und nur wenige Mails pro Stunde. Für Einladungen an Kolleginnen und Kollegen muss vorher ein eigener SMTP-Server eingetragen werden (Authentication → Emails → SMTP Settings). Das gilt genauso für „Passwort vergessen?“.

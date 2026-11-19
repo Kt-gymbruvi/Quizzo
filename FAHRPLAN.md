@@ -52,6 +52,9 @@ Außerdem in Etappe 4: Punkte pro Frage (keine/normal/doppelt), Quiz importieren
 - ✅ Team – Etappe 6, veröffentlicht: Lehrkraft wählt 2–6 Teams, automatische Verteilung
   aufs kleinste Team, Umsetzen in der Lobby (⇄), Teampunkte = Durchschnitt der Mitglieder, Siegerpodest der Teams
   (Ideen für später: Teams selbst wählen lassen, ein Handy pro Team)
+- ✅ Klassen-Challenge – Etappe 17 (SQL `015`, noch nicht veröffentlicht): alle gemeinsam gegen das Quiz, keine Rangliste;
+  Beamer und Handys zeigen „x % richtig als Klasse“ (Durchschnitt über die aufgelösten Fragen mit Wertung, keine Antwort = 0)
+  mit Medaillen Bronze 50 % / Silber 70 % / Gold 90 %; Endstand ohne Namen, auf dem Handy „Du hast x Punkte beigetragen“
 - ✅ Selbstlernen – Etappe 8, veröffentlicht: Link/Code, ohne Namen, beliebig oft,
   Lösung nach jeder Frage; die Lehrkraft sieht nur anonym „wie viele richtig“ pro Frage
 - ✅ Hausaufgaben – Etappe 8, veröffentlicht: Spitzname, Abgabefrist (max. 14 Tage),

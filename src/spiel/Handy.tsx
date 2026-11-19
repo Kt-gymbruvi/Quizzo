@@ -6,6 +6,7 @@ import { team, teamName } from '../lib/teams.ts'
 import type { SchuelerFrage, SchuelerZustand } from '../lib/spiel.ts'
 import { zahl } from './Beamer.tsx'
 import { HotspotBild, type Punkt, type Ziel } from './HotspotBild.tsx'
+import { KlassenBalken } from './KlassenBalken.tsx'
 
 // Handy-Ansicht (Schüler): Eingabe und Ergebnis je Fragetyp
 
@@ -464,7 +465,11 @@ export function HandyAuswertung({ z }: { z: SchuelerZustand }) {
           Richtig war: <b>{loesung}</b>
         </div>
       )}
-      {bewertet && eigenesTeam ? (
+      {bewertet && z.modus === 'challenge' && z.klasse ? (
+        <div className="mt-4 w-full rounded-2xl bg-black/20 px-4 py-3">
+          <KlassenBalken klasse={z.klasse} />
+        </div>
+      ) : bewertet && eigenesTeam ? (
         <p className="mt-4 rounded-2xl bg-black/20 px-4 py-2 text-2xl font-bold">
           {team(z.team)!.zeichen} {teamName(z.team)}: Platz {eigenesTeam.platz} von {z.teams!.length}
           <span className="block text-lg font-semibold">Du: {z.punkte} Punkte</span>

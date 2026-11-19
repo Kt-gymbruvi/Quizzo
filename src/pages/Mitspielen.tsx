@@ -1,3 +1,4 @@
+import { KlassenBalken, medailleFuer } from '../spiel/KlassenBalken.tsx'
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Knopf, Logo, Meldung, ZurueckLink } from '../components.tsx'
@@ -234,7 +235,7 @@ function SchuelerSpiel({ teilnahme, verlassen }: { teilnahme: Teilnahme; verlass
           <>
             <p className="text-4xl font-black">Runde {z.runde}</p>
             <p className="text-2xl font-bold">
-              Bisher: {z.punkte} Punkte · Platz {z.platz} von {z.anzahl_spieler}
+              Bisher: {z.punkte} Punkte{z.platz ? ` · Platz ${z.platz} von ${z.anzahl_spieler}` : ''}
             </p>
           </>
         ) : (
@@ -245,6 +246,9 @@ function SchuelerSpiel({ teilnahme, verlassen }: { teilnahme: Teilnahme; verlass
             <span className="block text-xl font-semibold text-white/85">Du spielst im</span>
             {team(z.team)!.zeichen} {teamName(z.team)}
           </p>
+        )}
+        {z.modus === 'challenge' && (
+          <p className="w-full rounded-3xl bg-black/20 px-6 py-4 text-2xl font-bold">🎯 Klassen-Challenge: Ihr spielt alle zusammen – jede richtige Antwort hilft der Klasse!</p>
         )}
         <p className="text-xl text-white/80">Schau nach vorne – gleich geht’s los.</p>
         <p className="text-lg text-white/60">{z.anzahl_spieler} Mitspielende</p>
@@ -303,6 +307,24 @@ function Mitte({ children }: { children: React.ReactNode }) {
 }
 
 function Ergebnis({ z }: { z: SchuelerZustand }) {
+  if (z.modus === 'challenge') {
+    const k = z.klasse ?? { prozent: 0, fragen: 0 }
+    const medaille = medailleFuer(k.prozent)
+    return (
+      <>
+        <p className="text-2xl font-bold text-white/80">Klassen-Challenge</p>
+        {medaille && (
+          <p className="text-7xl" aria-hidden="true">
+            {medaille.zeichen}
+          </p>
+        )}
+        <p className="text-4xl font-black text-quizzo-yellow">{medaille ? `${medaille.name} für eure Klasse!` : 'Geschafft!'}</p>
+        <KlassenBalken klasse={k} />
+        <p className="text-xl text-white/80">Du hast {z.punkte} Punkte beigetragen. Danke fürs Mitspielen!</p>
+        <WiederholenLink />
+      </>
+    )
+  }
   const eigenes = z.teams?.find((t) => t.team === z.team)
   if (eigenes) {
     const medaille = ['🥇', '🥈', '🥉'][eigenes.platz - 1]
@@ -324,7 +346,7 @@ function Ergebnis({ z }: { z: SchuelerZustand }) {
       </>
     )
   }
-  const medaille = ['🥇', '🥈', '🥉'][z.platz - 1]
+  const medaille = ['🥇', '🥈', '🥉'][(z.platz ?? 0) - 1]
   return (
     <>
       <p className="text-2xl font-bold text-white/80">Endstand</p>
