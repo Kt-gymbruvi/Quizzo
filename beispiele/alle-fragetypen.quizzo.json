@@ -70,6 +70,46 @@
       "einheit": ""
     },
     {
+      "typ": "kategorien",
+      "text": "Sortiere die Tiere: Säugetier oder Vogel?",
+      "zeitlimit": 60,
+      "punkte": 1,
+      "kategorien": ["Säugetier", "Vogel"],
+      "begriffe": [
+        { "text": "Delfin", "kategorie": "Säugetier" },
+        { "text": "Pinguin", "kategorie": "Vogel" },
+        { "text": "Fledermaus", "kategorie": "Säugetier" },
+        { "text": "Strauß", "kategorie": "Vogel" },
+        { "text": "Igel", "kategorie": "Säugetier" },
+        { "text": "Amsel", "kategorie": "Vogel" }
+      ]
+    },
+    {
+      "typ": "lueckentext",
+      "text": "Ergänze den Satz.",
+      "zeitlimit": 60,
+      "punkte": 1,
+      "lueckentext": "Die [Sonne] geht im [Osten|O] auf und im [Westen|W] unter.",
+      "modus": "eingabe"
+    },
+    {
+      "typ": "lueckentext",
+      "text": "Wähle die passenden Wörter.",
+      "zeitlimit": 45,
+      "punkte": 1,
+      "lueckentext": "Pflanzen nehmen [Kohlenstoffdioxid] auf und geben [Sauerstoff] ab.",
+      "modus": "auswahl",
+      "ablenker": ["Stickstoff", "Wasserstoff"]
+    },
+    {
+      "typ": "hotspot",
+      "text": "Tippe auf den Zellkern.",
+      "zeitlimit": 30,
+      "punkte": 1,
+      "bild": { "url": "https://kt-gymbruvi.github.io/Quizzo/beispiele/zelle.svg", "beschreibung": "Schema einer Tierzelle mit Zellkern, Mitochondrien und Vesikeln" },
+      "ziel": { "x": 65, "y": 40, "b": 22, "h": 34 }
+    },
+    {
       "typ": "umfrage",
       "text": "Welcher Fragetyp hat dir bisher am besten gefallen?",
       "zeitlimit": 20,

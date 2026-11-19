@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react'
 import { ANTWORT_STIL, FALSCH_STIL, WAHR_STIL } from '../lib/antwortStil.ts'
-import type { Medium } from '../lib/fragetypen.ts'
+import { lueckenAus, type Medium } from '../lib/fragetypen.ts'
 import { normalisiere, type AbgegebeneAntwort, type LehrkraftFrage } from '../lib/spiel.ts'
+import { HotspotBild, imZiel } from './HotspotBild.tsx'
 
 // Beamer-Ansicht (Lehrkraft, iPad quer): Frage und Auswertung je Fragetyp
 
@@ -136,6 +137,56 @@ export function BeamerFrage({ frage }: { frage: LehrkraftFrage }) {
           {frage.inhalt.einheit && <p className="text-3xl text-white/80">Einheit: {frage.inhalt.einheit}</p>}
         </div>
       )
+    case 'kategorien':
+      return (
+        <div className="flex flex-1 flex-col justify-center gap-8">
+          <ul className="flex flex-wrap justify-center gap-4">
+            {frage.inhalt.kategorien.map((k, i) => (
+              <li key={k} className={`flex items-center gap-3 rounded-2xl px-6 py-3 text-3xl font-black text-white ${ANTWORT_STIL[i].farbe}`}>
+                <span className="opacity-80">{ANTWORT_STIL[i].buchstabe}</span> {k}
+              </li>
+            ))}
+          </ul>
+          <ul className="flex flex-wrap justify-center gap-4">
+            {(a.begriffe ?? frage.inhalt.begriffe.map((b) => b.text)).map((b) => (
+              <li key={b} className="rounded-2xl bg-white px-6 py-3 text-3xl font-bold text-quizzo-navy">
+                {b}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )
+    case 'lueckentext': {
+      const { teile } = lueckenAus(frage.inhalt.lueckentext)
+      return (
+        <div className="flex flex-1 flex-col justify-center gap-6">
+          <p className="rounded-3xl bg-white/5 px-10 py-8 text-4xl leading-relaxed">
+            {teile.map((t, i) => (
+              <span key={i}>
+                <span className="whitespace-pre-line">{t}</span>
+                {i < teile.length - 1 && <span className="mx-1 inline-block min-w-32 border-b-4 border-quizzo-yellow text-center text-2xl font-black text-quizzo-yellow">{i + 1}</span>}
+              </span>
+            ))}
+          </p>
+          {a.optionen && (
+            <ul className="flex flex-wrap justify-center gap-3">
+              {a.optionen.map((o) => (
+                <li key={o} className="rounded-2xl bg-white px-5 py-2 text-3xl font-bold text-quizzo-navy">
+                  {o}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )
+    }
+    case 'hotspot':
+      return (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4">
+          <HotspotBild url={frage.inhalt.bild.url} beschreibung={frage.inhalt.bild.beschreibung} hoehe="max-h-[55vh]" />
+          <p className="text-2xl font-bold text-white/80">◎ Tippt auf dem Handy auf die richtige Stelle.</p>
+        </div>
+      )
     case 'folie':
       return frage.inhalt.text ? (
         <p className="flex-1 whitespace-pre-line rounded-3xl bg-white/5 px-10 py-8 text-4xl leading-snug">{frage.inhalt.text}</p>
@@ -189,6 +240,16 @@ export function zaehleTexte(texte: string[]) {
     else gruppen.set(k, { text: t.trim(), anzahl: 1 })
   }
   return [...gruppen.entries()].map(([schluessel, g]) => ({ schluessel, ...g })).sort((a, b) => b.anzahl - a.anzahl)
+}
+
+/** Durchschnittlicher Anteil richtig in Prozent */
+const durchschnitt = (antworten: AbgegebeneAntwort[]) => (antworten.length ? Math.round((antworten.reduce((s, a) => s + a.anteil, 0) / antworten.length) * 100) : 0)
+
+/** Lückentext: „richtig/abgegeben“ für Lücke i */
+function gefuellt(antworten: AbgegebeneAntwort[], i: number, loesungen: string[]) {
+  const ok = new Set(loesungen.map(normalisiere))
+  const richtig = antworten.filter((a) => Array.isArray(a.antwort) && ok.has(normalisiere(String(a.antwort[i] ?? '')))).length
+  return `${richtig}/${antworten.length}`
 }
 
 /** Auswertung nach dem Auflösen */
@@ -289,6 +350,74 @@ export function BeamerAuswertung({ frage, antworten }: { frage: LehrkraftFrage; 
             <span className="absolute -bottom-9 left-0 text-xl text-white/70">{zahl(min)}</span>
             <span className="absolute right-0 -bottom-9 text-xl text-white/70">{zahl(max)}</span>
           </div>
+        </div>
+      )
+    }
+    case 'kategorien': {
+      const { kategorien, begriffe } = frage.inhalt
+      // Pro Begriff: wie viele haben ihn richtig einsortiert?
+      const richtigBei = (b: string, k: number) => antworten.filter((a) => (a.antwort as Record<string, number> | null)?.[b] === k).length
+      return (
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${kategorien.length}, minmax(0, 1fr))` }}>
+            {kategorien.map((k, i) => (
+              <section key={k} className="flex flex-col gap-2 rounded-3xl bg-white/5 p-4">
+                <h3 className={`rounded-2xl px-4 py-2 text-center text-3xl font-black text-white ${ANTWORT_STIL[i].farbe}`}>{k}</h3>
+                <ul className="flex flex-col gap-2">
+                  {begriffe
+                    .filter((b) => b.kategorie === i)
+                    .map((b) => (
+                      <li key={b.text} className="flex items-center justify-between gap-3 rounded-xl bg-green-500/20 px-4 py-2 text-2xl font-bold ring-2 ring-green-400">
+                        <span className="break-words">{b.text}</span>
+                        <span className="text-xl tabular-nums text-white/80" title="so viele haben richtig einsortiert">
+                          {richtigBei(b.text, i)}/{antworten.length}
+                        </span>
+                      </li>
+                    ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+          <div className="flex gap-4">
+            <Kennzahl wert={`${durchschnitt(antworten)} %`} text="der Begriffe richtig einsortiert" />
+            <Kennzahl wert={`${richtigeAnzahl} / ${antworten.length}`} text="alles richtig" />
+          </div>
+        </div>
+      )
+    }
+    case 'lueckentext': {
+      const { teile, luecken } = lueckenAus(frage.inhalt.lueckentext)
+      return (
+        <div className="flex flex-col gap-4">
+          <p className="rounded-3xl bg-white/5 px-8 py-6 text-4xl leading-relaxed">
+            {teile.map((t, i) => (
+              <span key={i}>
+                <span className="whitespace-pre-line">{t}</span>
+                {i < luecken.length && (
+                  <span className="mx-1 inline-block rounded-xl bg-green-500/30 px-3 font-black text-green-200 ring-2 ring-green-400">
+                    {luecken[i][0]}
+                    <sup className="ml-1 text-lg font-bold text-white/70">{gefuellt(antworten, i, luecken[i])}</sup>
+                  </span>
+                )}
+              </span>
+            ))}
+          </p>
+          <div className="flex gap-4">
+            <Kennzahl wert={`${durchschnitt(antworten)} %`} text="der Lücken richtig" />
+            <Kennzahl wert={`${richtigeAnzahl} / ${antworten.length}`} text="alles richtig" />
+          </div>
+        </div>
+      )
+    }
+    case 'hotspot': {
+      const punkte = antworten
+        .map((a) => a.antwort as { x?: number; y?: number } | null)
+        .filter((p): p is { x: number; y: number } => typeof p?.x === 'number' && typeof p?.y === 'number')
+        .map((p) => ({ ...p, richtig: imZiel(p, frage.inhalt.ziel) }))
+      return (
+        <div className="flex flex-col items-center gap-4">
+          <HotspotBild url={frage.inhalt.bild.url} beschreibung={frage.inhalt.bild.beschreibung} hoehe="max-h-[55vh]" ziel={frage.inhalt.ziel} punkte={punkte} zielBeschriftung="richtige Stelle" />
+          <Kennzahl wert={`${richtigeAnzahl} / ${antworten.length}`} text="haben die richtige Stelle getroffen" />
         </div>
       )
     }

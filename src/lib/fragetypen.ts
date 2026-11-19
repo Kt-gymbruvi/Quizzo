@@ -12,7 +12,13 @@ export type Inhalte = {
   offen: Record<string, never>
   schieberegler: { min: number; max: number; schritt: number; richtig: number; toleranz: number; einheit?: string }
   folie: { text: string }
+  kategorien: { kategorien: string[]; begriffe: { text: string; kategorie: number }[] }
+  /** Lücken im Text als [Lösung|andere Schreibweise]; modus auswahl = Lösungen (+ Ablenker) zum Auswählen */
+  lueckentext: { lueckentext: string; modus: 'auswahl' | 'eingabe'; ablenker?: string[] }
+  /** Zielbereich in Prozent der Bildbreite/-höhe: Mitte (x, y), Breite b, Höhe h */
+  hotspot: { bild: HotspotBild; ziel: { x: number; y: number; b: number; h: number } }
 }
+export type HotspotBild = { url: string; pfad?: string; beschreibung?: string }
 export type FrageTyp = keyof Inhalte
 export type Punkte = 0 | 1 | 2
 /** Schwierigkeit (für das Klassen-Duell): 1 leicht, 2 mittel, 3 schwer; ohne Angabe = mittel */
@@ -54,10 +60,34 @@ export const FRAGETYPEN: Record<FrageTyp, TypInfo> = {
   wortwolke: { name: 'Wortwolke', beschreibung: 'Kurze Begriffe sammeln, ohne Punkte', symbol: '☁', bewertet: false, zeitlimit: 30 },
   offen: { name: 'Offene Frage', beschreibung: 'Längere Antworten sammeln, ohne Punkte', symbol: '✎', bewertet: false, zeitlimit: 90 },
   folie: { name: 'Präsentationsfolie', beschreibung: 'Information zeigen, ohne Antwort', symbol: '▭', bewertet: false, zeitlimit: 20 },
+  kategorien: { name: 'Kategorisieren', beschreibung: 'Begriffe in 2–4 Gruppen sortieren', symbol: '🗂', bewertet: true, zeitlimit: 60 },
+  lueckentext: { name: 'Lückentext', beschreibung: 'Lücken im Text füllen – eintippen oder auswählen', symbol: '▁', bewertet: true, zeitlimit: 60 },
+  hotspot: { name: 'Bild-Hotspot', beschreibung: 'Auf die richtige Stelle im Bild tippen', symbol: '◎', bewertet: true, zeitlimit: 30 },
 }
-export const TYP_REIHENFOLGE: FrageTyp[] = ['auswahl', 'wahrfalsch', 'freitext', 'reihenfolge', 'zuordnung', 'umfrage', 'wortwolke', 'offen', 'schieberegler', 'folie']
+export const TYP_REIHENFOLGE: FrageTyp[] = [
+  'auswahl', 'wahrfalsch', 'freitext', 'reihenfolge', 'zuordnung', 'kategorien', 'lueckentext', 'hotspot', 'schieberegler',
+  'umfrage', 'wortwolke', 'offen', 'folie',
+]
 
-export const GRENZEN = { text: 500, antwort: 120, loesung: 40, element: 80, paar: 60, folie: 1000, einheit: 20 }
+export const GRENZEN = {
+  text: 500, antwort: 120, loesung: 40, element: 80, paar: 60, folie: 1000, einheit: 20,
+  kategorie: 40, begriff: 60, lueckentext: 600, luecke: 40, beschreibung: 300,
+}
+export const MAX_KATEGORIEN = 4
+export const MAX_BEGRIFFE = 12
+export const MAX_LUECKEN = 10
+export const MAX_ABLENKER = 6
+
+/**
+ * Zerlegt einen Lückentext wie die Datenbank (lueckentext_teile/-luecken):
+ * teile = Text zwischen den Lücken (immer ein Teil mehr als Lücken), luecken = akzeptierte Lösungen je Lücke.
+ * klammerFehler: übrig gebliebene eckige Klammern (nicht geschlossen oder verschachtelt).
+ */
+export function lueckenAus(text: string): { teile: string[]; luecken: string[][]; klammerFehler: boolean } {
+  const teile = text.split(/\[[^[\]]*\]/)
+  const luecken = [...text.matchAll(/\[([^[\]]*)\]/g)].map((m) => m[1].split('|').map((x) => x.trim()))
+  return { teile, luecken, klammerFehler: teile.some((x) => /[[\]]/.test(x)) }
+}
 
 export function neuerInhalt<T extends FrageTyp>(typ: T): Inhalte[T] {
   const inhalte: Inhalte = {
@@ -71,6 +101,9 @@ export function neuerInhalt<T extends FrageTyp>(typ: T): Inhalte[T] {
     offen: {},
     schieberegler: { min: 0, max: 100, schritt: 1, richtig: 50, toleranz: 0, einheit: '' },
     folie: { text: '' },
+    kategorien: { kategorien: ['', ''], begriffe: [{ text: '', kategorie: 0 }, { text: '', kategorie: 1 }, { text: '', kategorie: 0 }, { text: '', kategorie: 1 }] },
+    lueckentext: { lueckentext: '', modus: 'eingabe', ablenker: [] },
+    hotspot: { bild: { url: '' }, ziel: { x: 50, y: 50, b: 20, h: 20 } },
   }
   return inhalte[typ]
 }
@@ -85,7 +118,7 @@ export function wechsleTyp(f: Frage, typ: FrageTyp): Frage {
   if (f.typ === typ) return f
   const neu = neueFrage(typ)
   neu.text = f.text
-  if (f.medium) neu.medium = f.medium
+  if (f.medium && typ !== 'hotspot') neu.medium = f.medium
   if (f.schwierigkeit && FRAGETYPEN[typ].bewertet) neu.schwierigkeit = f.schwierigkeit
   const alteTexte =
     f.typ === 'auswahl' || f.typ === 'umfrage' ? f.inhalt.antworten : f.typ === 'reihenfolge' ? f.inhalt.elemente : null
@@ -138,6 +171,32 @@ export function bereinigeFrage(f: Frage): Frage {
     }
     case 'folie':
       return { ...basis, typ: 'folie', inhalt: { text: f.inhalt.text.trim() } }
+    case 'kategorien':
+      return {
+        ...basis,
+        typ: 'kategorien',
+        inhalt: {
+          kategorien: f.inhalt.kategorien.map(t),
+          begriffe: f.inhalt.begriffe.map((b) => ({ text: t(b.text), kategorie: b.kategorie })).filter((b) => b.text),
+        },
+      }
+    case 'lueckentext': {
+      const ablenker = f.inhalt.modus === 'auswahl' ? (f.inhalt.ablenker ?? []).map(t).filter(Boolean) : []
+      return { ...basis, typ: 'lueckentext', inhalt: { lueckentext: f.inhalt.lueckentext.trim(), modus: f.inhalt.modus, ...(ablenker.length ? { ablenker } : {}) } }
+    }
+    case 'hotspot': {
+      const { url, pfad, beschreibung } = f.inhalt.bild
+      const runde = (n: number) => Math.round(n * 10) / 10
+      const z = f.inhalt.ziel
+      return {
+        ...basis,
+        typ: 'hotspot',
+        inhalt: {
+          bild: { url: t(url), ...(pfad ? { pfad } : {}), ...(t(beschreibung) ? { beschreibung: t(beschreibung) } : {}) },
+          ziel: { x: runde(z.x), y: runde(z.y), b: runde(z.b), h: runde(z.h) },
+        },
+      }
+    }
     default:
       return { ...basis, typ: f.typ, inhalt: f.inhalt } as Frage
   }
@@ -232,6 +291,42 @@ export function pruefeFrage(roh: Frage): string[] {
     case 'folie':
       if (f.inhalt.text.length > GRENZEN.folie) fehler.push(`Der Folientext ist zu lang (höchstens ${GRENZEN.folie} Zeichen).`)
       break
+    case 'kategorien': {
+      const { kategorien, begriffe } = f.inhalt
+      if (kategorien.length < 2 || kategorien.length > MAX_KATEGORIEN) fehler.push(`Bitte 2 bis ${MAX_KATEGORIEN} Gruppen anlegen.`)
+      if (kategorien.some((k) => !k)) fehler.push('Bitte jeder Gruppe einen Namen geben.')
+      else if (!eindeutig(kategorien)) fehler.push('Jede Gruppe braucht einen eigenen Namen.')
+      if (kategorien.some((k) => k.length > GRENZEN.kategorie)) fehler.push(`Ein Gruppenname ist zu lang (höchstens ${GRENZEN.kategorie} Zeichen).`)
+      if (begriffe.length < 2) fehler.push('Bitte mindestens zwei Begriffe eintragen.')
+      if (begriffe.length > MAX_BEGRIFFE) fehler.push(`Höchstens ${MAX_BEGRIFFE} Begriffe.`)
+      if (!eindeutig(begriffe.map((b) => b.text))) fehler.push('Jeder Begriff darf nur einmal vorkommen.')
+      if (begriffe.some((b) => b.text.length > GRENZEN.begriff)) fehler.push(`Ein Begriff ist zu lang (höchstens ${GRENZEN.begriff} Zeichen).`)
+      if (begriffe.some((b) => !Number.isInteger(b.kategorie) || b.kategorie < 0 || b.kategorie >= kategorien.length)) fehler.push('Bitte jeden Begriff einer Gruppe zuordnen.')
+      break
+    }
+    case 'lueckentext': {
+      const { luecken, klammerFehler } = lueckenAus(f.inhalt.lueckentext)
+      if (f.inhalt.lueckentext.length > GRENZEN.lueckentext) fehler.push(`Der Lückentext ist zu lang (höchstens ${GRENZEN.lueckentext} Zeichen).`)
+      if (klammerFehler) fehler.push('Eine eckige Klammer ist nicht geschlossen (Lücken so schreiben: [Lösung]).')
+      else if (luecken.length === 0) fehler.push('Bitte mindestens eine Lücke in eckigen Klammern markieren, z. B. „Die [Sonne] geht auf.“')
+      if (luecken.length > MAX_LUECKEN) fehler.push(`Höchstens ${MAX_LUECKEN} Lücken.`)
+      if (luecken.some((l) => l.some((x) => !x))) fehler.push('Eine Lücke ist leer – bitte die Lösung in die Klammern schreiben.')
+      if (luecken.some((l) => l.some((x) => x.length > GRENZEN.luecke))) fehler.push(`Eine Lösung ist zu lang (höchstens ${GRENZEN.luecke} Zeichen).`)
+      if (luecken.some((l) => l.length > 10)) fehler.push('Höchstens 10 Schreibweisen pro Lücke.')
+      const ablenker = f.inhalt.ablenker ?? []
+      if (ablenker.length > MAX_ABLENKER) fehler.push(`Höchstens ${MAX_ABLENKER} falsche Wörter.`)
+      if (ablenker.some((a) => a.length > GRENZEN.luecke)) fehler.push(`Ein falsches Wort ist zu lang (höchstens ${GRENZEN.luecke} Zeichen).`)
+      break
+    }
+    case 'hotspot': {
+      const { bild, ziel } = f.inhalt
+      if (!bild.url) fehler.push('Bitte ein Bild hochladen.')
+      else if (!/^https:\/\/[^\s"<>]+$/.test(bild.url) || bild.url.length > 1000) fehler.push('Die Adresse des Bildes ist ungültig.')
+      if ((bild.beschreibung ?? '').length > GRENZEN.beschreibung) fehler.push(`Die Bildbeschreibung ist zu lang (höchstens ${GRENZEN.beschreibung} Zeichen).`)
+      const zahlOk = (n: number, lo: number, hi: number) => Number.isFinite(n) && n >= lo && n <= hi
+      if (!zahlOk(ziel.x, 0, 100) || !zahlOk(ziel.y, 0, 100) || !zahlOk(ziel.b, 2, 100) || !zahlOk(ziel.h, 2, 100)) fehler.push('Bitte den Zielbereich im Bild festlegen.')
+      break
+    }
   }
   return fehler
 }
@@ -350,6 +445,36 @@ function importiereFrage(r: Roh): Frage {
     case 'folie':
       basis.inhalt.text = typeof r.folientext === 'string' ? r.folientext : ''
       break
+    case 'kategorien': {
+      const kategorien = texte(r.kategorien)
+      basis.inhalt.kategorien = kategorien
+      basis.inhalt.begriffe = (Array.isArray(r.begriffe) ? r.begriffe : []).filter(istObjekt).map((x) => {
+        // Gruppe als Nummer (ab 0) oder als Name
+        const k = typeof x.kategorie === 'string' && kategorien.includes(x.kategorie) ? kategorien.indexOf(x.kategorie) : zahl(x.kategorie, -1)
+        return { text: typeof x.text === 'string' ? x.text : '', kategorie: k }
+      })
+      break
+    }
+    case 'lueckentext':
+      basis.inhalt = {
+        lueckentext: typeof r.lueckentext === 'string' ? r.lueckentext : '',
+        modus: r.modus === 'auswahl' ? 'auswahl' : 'eingabe',
+        ablenker: texte(r.ablenker),
+      }
+      break
+    case 'hotspot': {
+      const b = istObjekt(r.bild) ? r.bild : {}
+      const z = istObjekt(r.ziel) ? r.ziel : {}
+      basis.inhalt = {
+        bild: {
+          url: typeof b.url === 'string' ? b.url.trim() : '',
+          ...(typeof b.pfad === 'string' ? { pfad: b.pfad } : {}),
+          ...(typeof b.beschreibung === 'string' ? { beschreibung: b.beschreibung } : {}),
+        },
+        ziel: { x: zahl(z.x, 50), y: zahl(z.y, 50), b: zahl(z.b, 20), h: zahl(z.h, 20) },
+      }
+      break
+    }
   }
   return basis
 }

@@ -22,6 +22,16 @@ export type Ansicht = {
   schritt?: number
   einheit?: string | null
   text?: string | null
+  /** Kategorisieren: Gruppen und (gemischte) Begriffe */
+  kategorien?: string[]
+  begriffe?: string[]
+  /** Lückentext: Textteile zwischen den Lücken, Anzahl Lücken, Auswahlliste (nur im Auswahl-Modus) */
+  teile?: string[]
+  luecken?: number
+  optionen?: string[] | null
+  /** Hotspot: Bildadresse und Beschreibung */
+  bild?: string
+  beschreibung?: string | null
 }
 
 export type LehrkraftFrage = Frage & { ansicht: Ansicht }

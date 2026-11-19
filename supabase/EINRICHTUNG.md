@@ -106,6 +106,11 @@ Inhalt von [`migrations/013_mischen.sql`](migrations/013_mischen.sql) im **SQL E
 **bevor** die neue App-Version veröffentlicht wird. Die alte App-Version funktioniert danach weiter.
 Neu: Beim Verteilen als Hausaufgabe oder Prüfung lässt sich „Fragen und Antworten mischen“ wählen.
 
+## 17. Neue Fragetypen: Kategorisieren, Lückentext, Bild-Hotspot (Etappe 15)
+Inhalt von [`migrations/014_neue_fragetypen.sql`](migrations/014_neue_fragetypen.sql) im **SQL Editor** ausführen –
+**bevor** die neue App-Version veröffentlicht wird (sonst lehnt die Datenbank Quizze mit den neuen Fragetypen ab).
+Die alte App-Version funktioniert danach weiter.
+
 ## Weitere Lehrkräfte
 - **Am einfachsten:** wie in Schritt 5 ein Konto mit Startpasswort anlegen. Die Lehrkraft ändert es nach der ersten Anmeldung über „Passwort ändern“.
 - **Per E-Mail-Einladung** (Users → Add user → Send invitation): Der eingebaute E-Mail-Versand von Supabase schickt nur an Mitglieder deines Supabase-Teams und nur wenige Mails pro Stunde. Für Einladungen an Kolleginnen und Kollegen muss vorher ein eigener SMTP-Server eingetragen werden (Authentication → Emails → SMTP Settings). Das gilt genauso für „Passwort vergessen?“.

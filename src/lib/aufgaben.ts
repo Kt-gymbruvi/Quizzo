@@ -201,6 +201,16 @@ export function antwortAlsText(f: AufgabeFrage, a: unknown): string {
       return Array.isArray(a) ? a.map((r, n) => `${i.paare?.[n]?.links ?? '?'} – ${r}`).join('; ') : ''
     case 'schieberegler':
       return `${a}${i.einheit ? ' ' + i.einheit : ''}`
+    case 'kategorien': {
+      const k = f.inhalt as { kategorien?: string[] }
+      return typeof a === 'object' && !Array.isArray(a) ? Object.entries(a as Record<string, number>).map(([b, n]) => `${b} → ${k.kategorien?.[n] ?? '?'}`).join('; ') : ''
+    }
+    case 'lueckentext':
+      return Array.isArray(a) ? a.map((w, n) => `${n + 1}. ${w || '–'}`).join('; ') : ''
+    case 'hotspot': {
+      const p = a as { x?: number; y?: number }
+      return typeof p?.x === 'number' ? `Stelle ${Math.round(p.x)} % / ${Math.round(p.y ?? 0)} %` : ''
+    }
     default:
       return String(a)
   }

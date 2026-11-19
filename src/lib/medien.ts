@@ -99,9 +99,10 @@ export async function raeumeMedienAuf(kandidaten: Iterable<string> = []): Promis
     const { data: dateien, error } = await speicher.list(uid, { limit: 1000 })
     if (error || !dateien) return []
 
-    const { data: fragen, error: fehler } = await db().from('fragen').select('medium').not('medium', 'is', null)
+    // Medien der Fragen und Bilder von Hotspot-Fragen
+    const { data: fragen, error: fehler } = await db().from('fragen').select('typ, medium, inhalt').or('medium.not.is.null,typ.eq.hotspot')
     if (fehler) return []
-    const benutzt = new Set((fragen ?? []).map((f) => (f.medium as { pfad?: string } | null)?.pfad).filter(Boolean))
+    const benutzt = new Set(pfadeIn((fragen ?? []) as FrageMitMedien[]))
 
     const sofort = new Set(kandidaten)
     const jetzt = Date.now()
@@ -116,9 +117,17 @@ export async function raeumeMedienAuf(kandidaten: Iterable<string> = []): Promis
   }
 }
 
-/** Alle Speicherpfade in einer Liste von Fragen. */
-export function pfadeIn(fragen: { medium?: Medium | null }[]): string[] {
-  return fragen.flatMap((f) => (f.medium && 'pfad' in f.medium && f.medium.pfad ? [f.medium.pfad] : []))
+type FrageMitMedien = { typ?: string; medium?: Medium | null; inhalt?: unknown }
+
+/** Alle Speicherpfade in einer Liste von Fragen (Medium der Frage und Bild einer Hotspot-Frage). */
+export function pfadeIn(fragen: FrageMitMedien[]): string[] {
+  return fragen.flatMap((f) => {
+    const pfade: string[] = []
+    if (f.medium && 'pfad' in f.medium && f.medium.pfad) pfade.push(f.medium.pfad)
+    const bild = f.typ === 'hotspot' ? (f.inhalt as { bild?: { pfad?: unknown } } | null)?.bild : null
+    if (typeof bild?.pfad === 'string' && bild.pfad) pfade.push(bild.pfad)
+    return pfade
+  })
 }
 
 /** Sekunden als m:ss, für Start-/Endzeiten. */

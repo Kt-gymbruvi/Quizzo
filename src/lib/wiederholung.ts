@@ -5,6 +5,7 @@
 
 import { FRAGETYPEN } from './fragetypen.ts'
 import { normalisiere, type SchuelerFrage } from './spiel.ts'
+import { imZiel, type Ziel } from '../spiel/HotspotBild.tsx'
 
 export type Uebung = { id: string; frage: SchuelerFrage; loesung: unknown; gemerkt: number }
 
@@ -19,7 +20,7 @@ export const uebbar = (f: SchuelerFrage) => FRAGETYPEN[f.typ].bewertet
 function schluessel(f: SchuelerFrage): string {
   const ansicht = { ...f.ansicht } as Record<string, unknown>
   // Reihenfolge und Zuordnung werden in jedem Spiel anders gemischt – für den Vergleich sortieren
-  for (const k of ['elemente', 'rechts']) if (Array.isArray(ansicht[k])) ansicht[k] = [...(ansicht[k] as string[])].sort()
+  for (const k of ['elemente', 'rechts', 'begriffe', 'optionen']) if (Array.isArray(ansicht[k])) ansicht[k] = [...(ansicht[k] as string[])].sort()
   return JSON.stringify([f.typ, f.text, ansicht])
 }
 
@@ -93,6 +94,20 @@ export function bewerte(u: Uebung, a: unknown): number {
       const spanne = ((u.frage.ansicht.max ?? 100) - (u.frage.ansicht.min ?? 0)) / 4
       const diff = Math.abs(Number(a) - richtig)
       return diff <= toleranz ? 1 : Math.max(0, 1 - (diff - toleranz) / spanne)
+    }
+    case 'kategorien': {
+      const { begriffe } = l as { begriffe: { text: string; kategorie: number }[] }
+      const wahl = (a ?? {}) as Record<string, number>
+      return begriffe.filter((b) => wahl[b.text] === b.kategorie).length / begriffe.length
+    }
+    case 'lueckentext': {
+      const luecken = l as string[][]
+      const wahl = Array.isArray(a) ? a : []
+      return luecken.filter((loesungen, i) => loesungen.some((x) => normalisiere(x) === normalisiere(String(wahl[i] ?? '')))).length / luecken.length
+    }
+    case 'hotspot': {
+      const p = a as { x: number; y: number } | null
+      return p && imZiel(p, l as Ziel) ? 1 : 0
     }
     default:
       return 0

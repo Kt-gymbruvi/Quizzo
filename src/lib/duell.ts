@@ -1,8 +1,8 @@
 // Klassen-Duell (Jeopardy-Stil): Teams spielen am Beamer, ohne Handys.
 // Jedes gewählte Quiz wird eine Kategorie, seine Fragen werden Felder mit 100 bis 500 Punkten.
 // Es werden keine Daten auf dem Server gespeichert – der Spielstand liegt nur auf dem Lehrkraft-Gerät.
-import { FRAGETYPEN, type Frage } from './fragetypen.ts'
-import type { Ansicht, LehrkraftFrage } from './spiel.ts'
+import { FRAGETYPEN, lueckenAus, type Frage } from './fragetypen.ts'
+import { normalisiere, type Ansicht, type LehrkraftFrage } from './spiel.ts'
 import { zahl } from '../spiel/Beamer.tsx'
 
 export const MIN_KATEGORIEN = 2
@@ -147,6 +147,24 @@ export function alsBeamerFrage(f: Frage, zufallszahl: () => number = Math.random
     case 'schieberegler':
       ansicht = { min: f.inhalt.min, max: f.inhalt.max, schritt: f.inhalt.schritt, einheit: f.inhalt.einheit ?? null }
       break
+    case 'kategorien':
+      ansicht = { kategorien: f.inhalt.kategorien, begriffe: gemischt(f.inhalt.begriffe.map((b) => b.text), zufallszahl) }
+      break
+    case 'lueckentext': {
+      const { teile, luecken } = lueckenAus(f.inhalt.lueckentext)
+      const optionen =
+        f.inhalt.modus === 'auswahl'
+          ? gemischt(
+              [...luecken.map((l) => l[0]), ...(f.inhalt.ablenker ?? [])].filter((o, i, alle) => alle.findIndex((x) => normalisiere(x) === normalisiere(o)) === i),
+              zufallszahl,
+            )
+          : null
+      ansicht = { teile, luecken: luecken.length, optionen }
+      break
+    }
+    case 'hotspot':
+      ansicht = { bild: f.inhalt.bild.url, beschreibung: f.inhalt.bild.beschreibung ?? null }
+      break
   }
   return { ...f, ansicht } as LehrkraftFrage
 }
@@ -169,6 +187,12 @@ export function loesungZeilen(f: Frage): string[] {
       const t = f.inhalt.toleranz ? ` (± ${zahl(f.inhalt.toleranz)}${e} zählt noch)` : ''
       return [`${zahl(f.inhalt.richtig)}${e}${t}`]
     }
+    case 'kategorien':
+      return f.inhalt.kategorien.map((k, i) => `${k}: ${f.inhalt.begriffe.filter((b) => b.kategorie === i).map((b) => b.text).join(', ')}`)
+    case 'lueckentext':
+      return lueckenAus(f.inhalt.lueckentext).luecken.map((l, i) => `${i + 1}. ${l.join(' / ')}`)
+    case 'hotspot':
+      return ['Siehe Markierung im Bild']
     default:
       return []
   }

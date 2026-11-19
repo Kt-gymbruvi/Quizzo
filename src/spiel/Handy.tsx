@@ -5,6 +5,7 @@ import { FRAGETYPEN } from '../lib/fragetypen.ts'
 import { team, teamName } from '../lib/teams.ts'
 import type { SchuelerFrage, SchuelerZustand } from '../lib/spiel.ts'
 import { zahl } from './Beamer.tsx'
+import { HotspotBild, type Punkt, type Ziel } from './HotspotBild.tsx'
 
 // Handy-Ansicht (Schüler): Eingabe und Ergebnis je Fragetyp
 
@@ -81,6 +82,12 @@ export function HandyEingabe({ frage, senden }: { frage: SchuelerFrage; senden: 
       return <Zuordnen links={frage.ansicht.links ?? []} rechts={frage.ansicht.rechts ?? []} senden={senden} />
     case 'schieberegler':
       return <Regler min={frage.ansicht.min ?? 0} max={frage.ansicht.max ?? 100} schritt={frage.ansicht.schritt ?? 1} einheit={frage.ansicht.einheit ?? ''} senden={senden} />
+    case 'kategorien':
+      return <Kategorisieren kategorien={frage.ansicht.kategorien ?? []} begriffe={frage.ansicht.begriffe ?? []} senden={senden} />
+    case 'lueckentext':
+      return <Lueckentext teile={frage.ansicht.teile ?? []} optionen={frage.ansicht.optionen ?? null} maxZeichen={frage.ansicht.max_zeichen ?? 40} senden={senden} />
+    case 'hotspot':
+      return <Hotspot bild={frage.ansicht.bild ?? ''} beschreibung={frage.ansicht.beschreibung} senden={senden} />
     case 'folie':
       return (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
@@ -238,6 +245,118 @@ function Regler({ min, max, schritt, einheit, senden }: { min: number; max: numb
   )
 }
 
+/** Kategorisieren: zu jedem Begriff die Gruppe antippen (Buchstabe + Farbe wie in der Legende) */
+function Kategorisieren({ kategorien, begriffe, senden }: { kategorien: string[]; begriffe: string[]; senden: (a: unknown) => void }) {
+  const [wahl, setWahl] = useState<Record<string, number>>({})
+  const fertig = begriffe.every((b) => wahl[b] !== undefined)
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      <ul className="flex shrink-0 flex-wrap justify-center gap-2" aria-label="Gruppen">
+        {kategorien.map((k, i) => (
+          <li key={k} className={`flex items-center gap-2 rounded-xl px-3 py-1 text-lg font-bold text-white ${ANTWORT_STIL[i].farbe}`}>
+            <span className="font-black">{ANTWORT_STIL[i].buchstabe}</span> {k}
+          </li>
+        ))}
+      </ul>
+      <div className="grid flex-1 gap-2" style={zeilenRaster(begriffe.length)}>
+        {begriffe.map((b) => (
+          <div key={b} className="flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-1">
+            <span className="min-w-0 flex-1 break-words text-lg font-bold leading-tight">{b}</span>
+            {kategorien.map((k, i) => {
+              const gewaehlt = wahl[b] === i
+              return (
+                <button
+                  key={k}
+                  onClick={() => setWahl((w) => ({ ...w, [b]: i }))}
+                  aria-pressed={gewaehlt}
+                  aria-label={`${b}: ${k}`}
+                  className={`h-11 w-11 shrink-0 rounded-xl text-xl font-black text-white transition ${ANTWORT_STIL[i].farbe} ${
+                    gewaehlt ? 'ring-4 ring-white' : wahl[b] !== undefined ? 'opacity-35' : ''
+                  }`}
+                >
+                  {ANTWORT_STIL[i].buchstabe}
+                </button>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+      <Senden onClick={() => senden(wahl)} disabled={!fertig} />
+    </div>
+  )
+}
+
+/** Lückentext: Eingabefelder oder Auswahllisten mitten im Text */
+function Lueckentext({ teile, optionen, maxZeichen, senden }: { teile: string[]; optionen: string[] | null; maxZeichen: number; senden: (a: unknown) => void }) {
+  const n = Math.max(0, teile.length - 1)
+  const [werte, setWerte] = useState<string[]>(() => Array.from({ length: n }, () => ''))
+  const setze = (i: number, w: string) => setWerte((alt) => alt.map((x, j) => (j === i ? w : x)))
+  const lueckenFeld = 'mx-1 my-1 inline-block min-w-0 rounded-lg bg-white px-2 py-1 align-middle text-xl font-bold text-quizzo-navy focus:outline-none focus:ring-4 focus:ring-quizzo-yellow/60'
+  return (
+    <form
+      className="flex min-h-0 flex-1 flex-col gap-3"
+      onSubmit={(e) => {
+        e.preventDefault()
+        senden(werte.map((w) => w.trim()))
+      }}
+    >
+      <p className="flex-1 rounded-2xl bg-white/10 px-4 py-3 text-xl leading-loose">
+        {teile.map((t, i) => (
+          <span key={i}>
+            <span className="whitespace-pre-line">{t}</span>
+            {i < n &&
+              (optionen ? (
+                <select value={werte[i]} onChange={(e) => setze(i, e.target.value)} aria-label={`Lücke ${i + 1}`} className={`${lueckenFeld} max-w-[12rem]`}>
+                  <option value="">– {i + 1} –</option>
+                  {optionen.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  value={werte[i]}
+                  onChange={(e) => setze(i, e.target.value)}
+                  maxLength={maxZeichen}
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  placeholder={String(i + 1)}
+                  aria-label={`Lücke ${i + 1}`}
+                  className={`${lueckenFeld} w-32 placeholder:font-normal placeholder:text-slate-400`}
+                />
+              ))}
+          </span>
+        ))}
+      </p>
+      <Senden onClick={() => senden(werte.map((w) => w.trim()))} disabled={werte.every((w) => !w.trim())} />
+    </form>
+  )
+}
+
+/** Hotspot: auf die richtige Stelle im Bild tippen, dann senden */
+function Hotspot({ bild, beschreibung, senden }: { bild: string; beschreibung?: string | null; senden: (a: unknown) => void }) {
+  const [punkt, setPunkt] = useState<Punkt | null>(null)
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      <p className="shrink-0 text-center text-base text-white/80">{punkt ? 'Du kannst noch umentscheiden – oder senden.' : 'Tippe auf die richtige Stelle im Bild.'}</p>
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+        <HotspotBild url={bild} beschreibung={beschreibung} tippen={setPunkt} marker={punkt} />
+      </div>
+      <Senden onClick={() => punkt && senden(punkt)} disabled={!punkt} />
+    </div>
+  )
+}
+
+/** Wie viele Teile richtig waren (Zuordnung, Kategorisieren, Lückentext) – sonst null */
+export function teilrichtigText(frage: SchuelerFrage, anteil: number): string | null {
+  const a = frage.ansicht
+  const [n, was] =
+    frage.typ === 'zuordnung' ? [a.links?.length ?? 0, 'Paaren'] : frage.typ === 'kategorien' ? [a.begriffe?.length ?? 0, 'Begriffen'] : frage.typ === 'lueckentext' ? [a.luecken ?? 0, 'Lücken'] : [0, '']
+  if (!n || anteil >= 1) return null
+  return `${Math.round(anteil * n)} von ${n} ${was} richtig`
+}
+
 /** Lösung als lesbarer Text für die Ergebnis-Anzeige auf dem Handy */
 export function loesungText(frage: SchuelerFrage, loesung: unknown): ReactNode {
   if (loesung == null) return null
@@ -270,6 +389,38 @@ export function loesungText(frage: SchuelerFrage, loesung: unknown): ReactNode {
       const l = loesung as { richtig: number; einheit?: string | null }
       return `${zahl(l.richtig)}${l.einheit ? ' ' + l.einheit : ''}`
     }
+    case 'kategorien': {
+      const l = loesung as { kategorien: string[]; begriffe: { text: string; kategorie: number }[] }
+      return (
+        <ul className="mt-1 text-left">
+          {l.kategorien.map((k, i) => (
+            <li key={k}>
+              {k}: <span className="font-normal">{l.begriffe.filter((b) => b.kategorie === i).map((b) => b.text).join(', ')}</span>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+    case 'lueckentext': {
+      const l = loesung as string[][]
+      const teile = frage.ansicht.teile ?? []
+      return (
+        <span className="mt-1 block text-left font-normal">
+          {teile.map((t, i) => (
+            <span key={i}>
+              {t}
+              {i < l.length && <b className="rounded bg-white/20 px-1">{l[i][0]}</b>}
+            </span>
+          ))}
+        </span>
+      )
+    }
+    case 'hotspot':
+      return frage.ansicht.bild ? (
+        <span className="mt-2 block">
+          <HotspotBild url={frage.ansicht.bild} beschreibung={frage.ansicht.beschreibung} hoehe="max-h-[30dvh]" ziel={loesung as Ziel} zielBeschriftung="richtige Stelle" />
+        </span>
+      ) : null
     default:
       return null
   }
@@ -307,7 +458,7 @@ export function HandyAuswertung({ z }: { z: SchuelerZustand }) {
     <div className={`flex flex-1 flex-col items-center justify-center gap-4 rounded-3xl px-5 py-6 text-center ${farbe}`}>
       <p className="text-5xl font-black">{titel}</p>
       {bewertet && m && (m.punkte ?? 0) > 0 && <p className="text-4xl font-black">+{m.punkte}</p>}
-      {frage?.typ === 'zuordnung' && m && anteil < 1 && <p className="text-xl">{Math.round(anteil * (frage.ansicht.links?.length ?? 0))} von {frage.ansicht.links?.length} Paaren richtig</p>}
+      {frage && m && teilrichtigText(frage, anteil) && <p className="text-xl">{teilrichtigText(frage, anteil)}</p>}
       {bewertet && loesung && anteil < 1 && (
         <div className="text-xl">
           Richtig war: <b>{loesung}</b>

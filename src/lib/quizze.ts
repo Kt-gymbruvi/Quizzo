@@ -101,8 +101,8 @@ export async function speichereQuiz(id: string | null, titel: string, fragen: Fr
 
 /** Löscht das Quiz samt Fragen und danach die nicht mehr verwendeten Mediendateien. */
 export async function loescheQuiz(id: string): Promise<void> {
-  const { data } = await db().from('fragen').select('medium').eq('quiz_id', id)
-  const pfade = pfadeIn((data ?? []) as { medium: Frage['medium'] }[])
+  const { data } = await db().from('fragen').select('typ, medium, inhalt').eq('quiz_id', id)
+  const pfade = pfadeIn((data ?? []) as Pick<Frage, 'typ' | 'medium' | 'inhalt'>[])
   const { error } = await db().from('quizze').delete().eq('id', id)
   if (error) throw error
   if (pfade.length) await raeumeMedienAuf(pfade)

@@ -212,9 +212,11 @@ export default function QuizEditor() {
                 className="resize-y rounded-xl bg-white px-4 py-3 text-2xl font-semibold text-quizzo-navy placeholder:font-normal placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-quizzo-yellow/60"
               />
 
-              <MedienFeld medium={f.medium} nr={fi + 1} setze={(medium) => aendere(fi, { ...f, medium })} hochgeladen={(p) => gesehenePfade.current.add(p)} />
+              {f.typ !== 'hotspot' && (
+                <MedienFeld medium={f.medium} nr={fi + 1} setze={(medium) => aendere(fi, { ...f, medium })} hochgeladen={(p) => gesehenePfade.current.add(p)} />
+              )}
 
-              <FrageFelder frage={f} nr={fi + 1} setzeInhalt={(inhalt) => aendere(fi, { ...f, inhalt } as Frage)} />
+              <FrageFelder frage={f} nr={fi + 1} setzeInhalt={(inhalt) => aendere(fi, { ...f, inhalt } as Frage)} hochgeladen={(p) => gesehenePfade.current.add(p)} />
             </li>
           )
         })}

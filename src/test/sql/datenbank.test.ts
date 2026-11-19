@@ -180,6 +180,10 @@ describe('Datenbank', () => {
       { typ: 'offen', text: 'Erkläre', inhalt: {} },
       { typ: 'schieberegler', text: 'Jahr?', inhalt: { min: 1900, max: 2000, schritt: 1, richtig: 1989, toleranz: 0, einheit: '' } },
       { typ: 'folie', text: 'Info', inhalt: { text: 'Hallo' } },
+      { typ: 'kategorien', text: 'Sortiere die Tiere', inhalt: { kategorien: ['Säugetier', 'Vogel'], begriffe: [{ text: 'Hund', kategorie: 0 }, { text: 'Amsel', kategorie: 1 }, { text: 'Wal', kategorie: 0 }, { text: 'Pinguin', kategorie: 1 }] } },
+      { typ: 'lueckentext', text: 'Ergänze', inhalt: { lueckentext: 'Die [Sonne] geht im [Osten|O] auf.', modus: 'eingabe' } },
+      { typ: 'lueckentext', text: 'Wähle', inhalt: { lueckentext: '[Rot] und [Blau]', modus: 'auswahl', ablenker: ['Grün'] } },
+      { typ: 'hotspot', text: 'Wo liegt Rom?', inhalt: { bild: { url: 'https://beispiel.supabase.co/storage/v1/object/public/quizzo-medien/u/karte.webp', pfad: 'u/karte.webp', beschreibung: 'Europakarte' }, ziel: { x: 40, y: 60, b: 10, h: 8 } } },
     ]
     it('akzeptiert die Beispieldatei mit allen Fragetypen (so wie die App sie speichert)', async () => {
       const { fragen } = importiereQuiz(beispiel)
@@ -202,6 +206,18 @@ describe('Datenbank', () => {
       ['Zuordnung mit doppelter rechter Seite', { typ: 'zuordnung', text: 'x', inhalt: { paare: [{ links: 'a', rechts: 'x' }, { links: 'b', rechts: 'x' }] } }],
       ['Schieberegler: Lösung außerhalb', { typ: 'schieberegler', text: 'x', inhalt: { min: 0, max: 10, schritt: 1, richtig: 11, toleranz: 0 } }],
       ['Schieberegler: min ≥ max', { typ: 'schieberegler', text: 'x', inhalt: { min: 10, max: 10, schritt: 1, richtig: 10, toleranz: 0 } }],
+      ['Kategorien mit nur einer Gruppe', { typ: 'kategorien', text: 'x', inhalt: { kategorien: ['a'], begriffe: [{ text: 'x', kategorie: 0 }, { text: 'y', kategorie: 0 }] } }],
+      ['Kategorien: Begriff ohne Gruppe', { typ: 'kategorien', text: 'x', inhalt: { kategorien: ['a', 'b'], begriffe: [{ text: 'x', kategorie: 0 }, { text: 'y' }] } }],
+      ['Kategorien: Gruppe gibt es nicht', { typ: 'kategorien', text: 'x', inhalt: { kategorien: ['a', 'b'], begriffe: [{ text: 'x', kategorie: 0 }, { text: 'y', kategorie: 2 }] } }],
+      ['Kategorien: doppelter Begriff', { typ: 'kategorien', text: 'x', inhalt: { kategorien: ['a', 'b'], begriffe: [{ text: 'x', kategorie: 0 }, { text: 'X', kategorie: 1 }] } }],
+      ['Lückentext ohne Lücke', { typ: 'lueckentext', text: 'x', inhalt: { lueckentext: 'Kein Platzhalter', modus: 'eingabe' } }],
+      ['Lückentext mit leerer Lücke', { typ: 'lueckentext', text: 'x', inhalt: { lueckentext: 'Die [] geht auf', modus: 'eingabe' } }],
+      ['Lückentext mit offener Klammer', { typ: 'lueckentext', text: 'x', inhalt: { lueckentext: 'Die [Sonne geht auf', modus: 'eingabe' } }],
+      ['Lückentext mit verschachtelter Klammer', { typ: 'lueckentext', text: 'x', inhalt: { lueckentext: 'Die [So[n]ne] geht auf', modus: 'eingabe' } }],
+      ['Lückentext ohne Modus', { typ: 'lueckentext', text: 'x', inhalt: { lueckentext: 'Die [Sonne]' } }],
+      ['Hotspot ohne https', { typ: 'hotspot', text: 'x', inhalt: { bild: { url: 'http://x.de/a.png' }, ziel: { x: 1, y: 1, b: 5, h: 5 } } }],
+      ['Hotspot: Ziel außerhalb', { typ: 'hotspot', text: 'x', inhalt: { bild: { url: 'https://x.de/a.png' }, ziel: { x: 120, y: 1, b: 5, h: 5 } } }],
+      ['Hotspot ohne Ziel', { typ: 'hotspot', text: 'x', inhalt: { bild: { url: 'https://x.de/a.png' } } }],
       ['unbekannter Typ', { typ: 'tanzen', text: 'x', inhalt: {} }],
       ['ungültiger Punktefaktor', { typ: 'wahrfalsch', text: 'x', inhalt: { richtig: true }, punkte: 3 }],
     ]
@@ -247,6 +263,30 @@ describe('Datenbank', () => {
       expect(await bewerte('schieberegler', s, 52)).toBe(1)
       expect(await bewerte('schieberegler', s, 64.5)).toBeCloseTo(0.5)
       expect(await bewerte('schieberegler', s, 100)).toBe(0)
+    })
+    it('Kategorien: Teilpunkte für jeden richtig einsortierten Begriff', async () => {
+      const k = { kategorien: ['Säugetier', 'Vogel'], begriffe: [{ text: 'Hund', kategorie: 0 }, { text: 'Amsel', kategorie: 1 }, { text: 'Wal', kategorie: 0 }, { text: 'Pinguin', kategorie: 1 }] }
+      expect(await bewerte('kategorien', k, { Hund: 0, Amsel: 1, Wal: 0, Pinguin: 1 })).toBe(1)
+      expect(await bewerte('kategorien', k, { Hund: 0, Amsel: 1, Wal: 1, Pinguin: 0 })).toBe(0.5)
+      await expect(bewerte('kategorien', k, { Hund: 0, Amsel: 1, Wal: 0 })).rejects.toThrow('Ungültige Antwort')
+      await expect(bewerte('kategorien', k, { Hund: 0, Amsel: 1, Wal: 0, Katze: 1 })).rejects.toThrow('Ungültige Antwort')
+      await expect(bewerte('kategorien', k, { Hund: 0, Amsel: 1, Wal: 0, Pinguin: 2 })).rejects.toThrow('Ungültige Antwort')
+    })
+    it('Lückentext: Teilpunkte pro Lücke, Schreibweisen wie beim Freitext', async () => {
+      const l = { lueckentext: 'Die [Sonne] geht im [Osten|O] auf.', modus: 'eingabe' }
+      expect(await bewerte('lueckentext', l, [' sonne ', 'o'])).toBe(1)
+      expect(await bewerte('lueckentext', l, ['Sonne', 'Westen'])).toBe(0.5)
+      expect(await bewerte('lueckentext', l, ['', ''])).toBe(0)
+      await expect(bewerte('lueckentext', l, ['Sonne'])).rejects.toThrow('Ungültige Antwort')
+      await expect(bewerte('lueckentext', l, ['Sonne', 3])).rejects.toThrow('Ungültige Antwort')
+    })
+    it('Hotspot: richtig, wenn innerhalb des Zielbereichs', async () => {
+      const h = { bild: { url: 'https://beispiel.supabase.co/storage/v1/object/public/quizzo-medien/u/karte.webp', pfad: 'u/karte.webp', beschreibung: 'Europakarte' }, ziel: { x: 40, y: 60, b: 10, h: 8 } }
+      expect(await bewerte('hotspot', h, { x: 40, y: 60 })).toBe(1)
+      expect(await bewerte('hotspot', h, { x: 45, y: 64 })).toBe(1)
+      expect(await bewerte('hotspot', h, { x: 46, y: 60 })).toBe(0)
+      await expect(bewerte('hotspot', h, { x: 40 })).rejects.toThrow('Ungültige Antwort')
+      await expect(bewerte('hotspot', h, { x: 140, y: 5 })).rejects.toThrow('Ungültige Antwort')
     })
     it('Umfrage, Wortwolke, offene Frage: keine Punkte', async () => {
       expect(await bewerte('umfrage', { antworten: ['a', 'b'] }, [1])).toBe(0)
@@ -922,6 +962,28 @@ describe('Datenbank', () => {
     })
   })
 
+  describe('Neue Fragetypen: Ansicht und Lösung', () => {
+    const ansicht = async (typ: string, inhalt: unknown) =>
+      (await db.query<{ a: Record<string, unknown> }>('select public.frage_fuer_schueler($1, $2, $3) as a', [typ, json(inhalt), 'salz'])).rows[0].a
+    const loesung = async (typ: string, inhalt: unknown) =>
+      (await db.query<{ l: unknown }>('select public.frage_loesung($1, $2) as l', [typ, json(inhalt)])).rows[0].l
+    it('Lückentext mit Auswahl: erste Lösungen und Ablenker, ohne doppelte, gemischt', async () => {
+      const inhalt = { lueckentext: '[Rot|rot.] und [Blau] und [rot]', modus: 'auswahl', ablenker: ['Grün', 'blau'] }
+      const a = await ansicht('lueckentext', inhalt)
+      expect(a.teile).toEqual(['', ' und ', ' und ', ''])
+      expect(a.luecken).toBe(3)
+      expect((a.optionen as string[]).map((o) => o.toLowerCase()).sort()).toEqual(['blau', 'grün', 'rot'])
+      expect(await loesung('lueckentext', inhalt)).toEqual([['Rot', 'rot.'], ['Blau'], ['rot']])
+    })
+    it('Kategorien: Begriffe gemischt, Lösung mit Gruppen', async () => {
+      const inhalt = { kategorien: ['A', 'B'], begriffe: [{ text: 'x', kategorie: 0 }, { text: 'y', kategorie: 1 }, { text: 'z', kategorie: 1 }] }
+      const a = await ansicht('kategorien', inhalt)
+      expect(a.kategorien).toEqual(['A', 'B'])
+      expect((a.begriffe as string[]).sort()).toEqual(['x', 'y', 'z'])
+      expect(await loesung('kategorien', inhalt)).toEqual(inhalt)
+    })
+  })
+
   describe('Schüler sehen bei keinem Fragetyp die Lösung vorab', () => {
     const typen: F[] = [
       { typ: 'auswahl', text: 'x', inhalt: { antworten: ['a', 'b', 'c'], richtig: [0, 2] } },
@@ -930,6 +992,9 @@ describe('Datenbank', () => {
       { typ: 'reihenfolge', text: 'x', inhalt: { elemente: ['a', 'b', 'c', 'd', 'e', 'f'] } },
       { typ: 'zuordnung', text: 'x', inhalt: { paare: [{ links: 'L1', rechts: 'R1' }, { links: 'L2', rechts: 'R2' }] } },
       { typ: 'schieberegler', text: 'x', inhalt: { min: 0, max: 100, schritt: 1, richtig: 42, toleranz: 0, einheit: 'kg' } },
+      { typ: 'kategorien', text: 'x', inhalt: { kategorien: ['K1', 'K2'], begriffe: [{ text: 'C', kategorie: 1 }, { text: 'B', kategorie: 0 }] } },
+      { typ: 'lueckentext', text: 'x', inhalt: { lueckentext: 'Das [Geheimwort|42] ist', modus: 'eingabe' } },
+      { typ: 'hotspot', text: 'x', inhalt: { bild: { url: 'https://beispiel.supabase.co/storage/v1/object/public/quizzo-medien/u/karte.webp', pfad: 'u/karte.webp', beschreibung: 'Europakarte' }, ziel: { x: 42, y: 42, b: 10, h: 8 } } },
     ]
     it.each(typen)('$typ', async (f) => {
       const id = await rpc<string>(db, A, 'quiz_speichern', [null, 'Geheim ' + f.typ, json([f])])
@@ -938,9 +1003,11 @@ describe('Datenbank', () => {
       await rpc(db, A, 'spiel_steuern', [sp.id, 'weiter'])
       const z = await rpc<SchuelerZustand>(db, ANONYM, 'spiel_zustand_schueler', [b.spieler_id, b.token])
       const text = JSON.stringify(z.frage)
-      expect(text).not.toMatch(/"richtig"|"loesungen"|"paare"|Geheimwort|42/)
+      expect(text).not.toMatch(/"richtig"|"loesungen"|"paare"|"kategorie":|"ziel":|"lueckentext":|Geheimwort|42/)
       expect(z.loesung).toBeNull()
       if (f.typ === 'zuordnung') expect(z.frage?.ansicht).toMatchObject({ links: ['L1', 'L2'] })
+      if (f.typ === 'lueckentext') expect(z.frage?.ansicht).toMatchObject({ teile: ['Das ', ' ist'], luecken: 1, optionen: null })
+      if (f.typ === 'hotspot') expect(z.frage?.ansicht).toMatchObject({ bild: expect.stringMatching(/^https:/), beschreibung: 'Europakarte' })
     })
   })
 })

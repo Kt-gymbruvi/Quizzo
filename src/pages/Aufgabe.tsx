@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Knopf, Logo, Meldung, ZurueckLink } from '../components.tsx'
 import { Einpassen } from '../einpassen.tsx'
-import { HandyEingabe, loesungText } from '../spiel/Handy.tsx'
+import { HandyEingabe, loesungText, teilrichtigText } from '../spiel/Handy.tsx'
 import {
   beantworte,
   codeNormal,
@@ -462,10 +462,11 @@ function RueckmeldungAnzeige({ r, modus, weiter, letzte }: { r: Rueckmeldung; mo
     <div className={`flex flex-1 flex-col items-center justify-center gap-4 rounded-3xl px-5 py-6 text-center ${farbe}`}>
       <p className="text-5xl font-black">{r.zuSpaet ? '⏱ Zeit abgelaufen' : !bewertet ? 'Danke!' : richtig ? 'Richtig!' : r.anteil > 0 ? 'Fast!' : 'Leider falsch'}</p>
       {modus === 'hausaufgabe' && bewertet && <p className="text-2xl font-bold">+{r.punkte ?? 0} Punkte</p>}
+      {bewertet && !r.zuSpaet && teilrichtigText(r.frage, r.anteil) && <p className="text-xl">{teilrichtigText(r.frage, r.anteil)}</p>}
       {loesung && (
-        <p className="text-xl">
+        <div className="text-xl">
           Richtig ist: <b>{loesung}</b>
-        </p>
+        </div>
       )}
       {!bewertet && !r.zuSpaet && <p className="text-xl">Deine Antwort ist gespeichert.</p>}
       <Knopf onClick={weiter} className="mt-2 !py-4 !text-2xl">

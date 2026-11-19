@@ -17,7 +17,7 @@ Stand: November 2026. ✅ = fertig, 🔨 = in Arbeit, ⏳ = geplant
   - Zeitlimit pro Frage bei Hausaufgabe und Prüfung (feste Zeit oder Zeiten aus dem Quiz); Fragen werden erst
     beim Öffnen übertragen, zu spät = 0 Punkte, die Lehrkraft sieht ⏱ in den Ergebnissen
 
-## Frageneditor (Etappe 4 ✅ veröffentlicht · Etappe 5 Medien ✅ veröffentlicht)
+## Frageneditor (Etappe 4 ✅ veröffentlicht · Etappe 5 Medien ✅ veröffentlicht · Etappe 15 ✅ SQL `014`, noch nicht veröffentlicht)
 | Nr. | Fragetyp | Interner Name | Punkte | Etappe |
 |---|---|---|---|---|
 | 1 | Multiple Choice (eine oder mehrere richtig, 2–6 Antworten) | `auswahl` | ja | 4 |
@@ -30,6 +30,9 @@ Stand: November 2026. ✅ = fertig, 🔨 = in Arbeit, ⏳ = geplant
 | 8 | Schieberegler (Zahl schätzen, je näher desto mehr Punkte) | `schieberegler` | ja | 4 |
 | 9 | Präsentationsfolie (Info ohne Antwort) | `folie` | nein | 4 |
 | 10 | Audio und Video (sowie Bilder zu Fragen) – nur am Beamer | Spalte `medium` | – | 5 |
+| 11 | Kategorisieren (Begriffe in 2–4 Gruppen sortieren, Teilpunkte) | `kategorien` | ja | 15 |
+| 12 | Lückentext (eintippen oder aus Liste wählen, Teilpunkte pro Lücke) | `lueckentext` | ja | 15 |
+| 13 | Bild-Hotspot (richtige Stelle im Bild antippen; Bild auch auf den Handys) | `hotspot` | ja | 15 |
 
 Etappe 5: Bild, Audio, Video hochladen (Supabase Storage, Bilder automatisch verkleinert) oder YouTube-Link (datensparsam über youtube-nocookie), jeweils mit optionalem Ausschnitt (von/bis). Unbenutzte Dateien werden automatisch gelöscht.
 Ideen für später: Medien auch auf den Handys anzeigen (Schalter pro Frage), Countdown erst nach dem Abspielen starten, Bilder als Antworten.
