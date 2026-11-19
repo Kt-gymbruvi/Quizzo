@@ -101,6 +101,11 @@ Legt die Tabelle `lr_tresore` an: je Lehrkraft ein Tresor für das Notenbuch (`n
 Tafel (`namen`) und die Klassen der Lehrraum-App (`klassen`). Der Server sieht nur verschlüsselte Daten; jede
 Lehrkraft liest und schreibt nur ihre eigenen Zeilen. Quizzo selbst benutzt die Tabelle nicht.
 
+## 16. Fragen und Antworten mischen (Etappe 14)
+Inhalt von [`migrations/013_mischen.sql`](migrations/013_mischen.sql) im **SQL Editor** ausführen –
+**bevor** die neue App-Version veröffentlicht wird. Die alte App-Version funktioniert danach weiter.
+Neu: Beim Verteilen als Hausaufgabe oder Prüfung lässt sich „Fragen und Antworten mischen“ wählen.
+
 ## Weitere Lehrkräfte
 - **Am einfachsten:** wie in Schritt 5 ein Konto mit Startpasswort anlegen. Die Lehrkraft ändert es nach der ersten Anmeldung über „Passwort ändern“.
 - **Per E-Mail-Einladung** (Users → Add user → Send invitation): Der eingebaute E-Mail-Versand von Supabase schickt nur an Mitglieder deines Supabase-Teams und nur wenige Mails pro Stunde. Für Einladungen an Kolleginnen und Kollegen muss vorher ein eigener SMTP-Server eingetragen werden (Authentication → Emails → SMTP Settings). Das gilt genauso für „Passwort vergessen?“.

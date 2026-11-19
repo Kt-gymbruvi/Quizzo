@@ -35,8 +35,8 @@ export function AufgabeErstellen({
   /** Das Quiz enthält Bilder/Audio/Video, die in Aufgaben nicht gezeigt werden */
   medienHinweis?: boolean
   laeuft: boolean
-  /** zeit: null = ohne Zeitlimit, 0 = Zeiten aus dem Quiz, sonst Sekunden pro Frage */
-  erstellen: (modus: Aufgabenmodus, frist: Date | null, codes: number | null, zeit: number | null) => void
+  /** zeit: null = ohne Zeitlimit, 0 = Zeiten aus dem Quiz, sonst Sekunden pro Frage; mischen: eigene Reihenfolge pro Person */
+  erstellen: (modus: Aufgabenmodus, frist: Date | null, codes: number | null, zeit: number | null, mischen: boolean) => void
   abbrechen: () => void
 }) {
   const [modus, setModus] = useState<Aufgabenmodus>('selbstlernen')
@@ -44,6 +44,7 @@ export function AufgabeErstellen({
   const [codes, setCodes] = useState(30)
   const [zeitart, setZeitart] = useState<Zeitart>('fest')
   const [sekunden, setSekunden] = useState(60)
+  const [mischen, setMischen] = useState(true)
   const [fehler, setFehler] = useState<string | null>(null)
   const dialog = useRef<HTMLDialogElement>(null)
 
@@ -63,12 +64,12 @@ export function AufgabeErstellen({
   const maxTage = modus === 'hausaufgabe' ? 14 : 30
 
   function absenden() {
-    if (modus === 'selbstlernen') return erstellen(modus, null, null, null)
+    if (modus === 'selbstlernen') return erstellen(modus, null, null, null, false)
     const d = new Date(frist)
     if (Number.isNaN(d.getTime()) || d.getTime() <= Date.now()) return setFehler('Die Frist muss in der Zukunft liegen.')
     if (d.getTime() > Date.now() + maxTage * TAG) return setFehler(`Die Frist darf höchstens ${maxTage} Tage entfernt sein.`)
     if (modus === 'pruefung' && !(codes >= 1 && codes <= 60)) return setFehler('Bitte 1 bis 60 Codes wählen.')
-    erstellen(modus, d, modus === 'pruefung' ? codes : null, zeitart === 'aus' ? null : zeitart === 'quiz' ? 0 : sekunden)
+    erstellen(modus, d, modus === 'pruefung' ? codes : null, zeitart === 'aus' ? null : zeitart === 'quiz' ? 0 : sekunden, mischen)
   }
 
   return (
@@ -188,6 +189,17 @@ export function AufgabeErstellen({
                 : `${zeitart === 'quiz' ? 'Jede Frage hat die Zeit, die im Quiz eingestellt ist (wie im Live-Spiel).' : `Jede Frage hat ${zeitText(sekunden)}.`} Die Zeit läuft ab dem Öffnen der Frage – Neuladen oder Zurückgehen setzt sie nicht zurück. Wer zu spät antwortet, bekommt für die Frage keine Punkte. Das erschwert Nachschlagen und KI-Hilfe, kann es aber nicht ganz verhindern.`}
             </p>
           </fieldset>
+        )}
+        {modus !== 'selbstlernen' && (
+          <label className="flex cursor-pointer items-start gap-4 rounded-2xl bg-white/5 p-5">
+            <input type="checkbox" checked={mischen} onChange={(e) => setMischen(e.target.checked)} className="mt-1 h-7 w-7 shrink-0 accent-quizzo-yellow" />
+            <span className="flex flex-col gap-1">
+              <span className="text-xl font-semibold">🔀 Fragen und Antworten mischen</span>
+              <span className="text-base text-white/70">
+                Jede Person bekommt die Fragen und Antwortmöglichkeiten in einer eigenen Reihenfolge – das erschwert Abschreiben. Präsentationsfolien bleiben an ihrem Platz.
+              </span>
+            </span>
+          </label>
         )}
         {modus === 'pruefung' && (
           <p className="text-lg text-white/75">

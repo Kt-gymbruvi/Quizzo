@@ -159,10 +159,10 @@ export default function QuizListe() {
     }
   }
 
-  async function aufgabeErstellen(q: QuizUebersicht, modus: Aufgabenmodus, frist: Date | null, codes: number | null, zeit: number | null) {
+  async function aufgabeErstellen(q: QuizUebersicht, modus: Aufgabenmodus, frist: Date | null, codes: number | null, zeit: number | null, mischen: boolean) {
     setAufgabeLaeuft(true)
     try {
-      const a = await erstelleAufgabe(q.id, modus, frist, codes, zeit)
+      const a = await erstelleAufgabe(q.id, modus, frist, codes, zeit, mischen)
       navigate(`/leiten/aufgabe/${a.id}`)
     } catch (err) {
       setFehler([fehlerText(err)])
@@ -591,7 +591,9 @@ export default function QuizListe() {
           titel={aufgabeDialog.quiz.titel}
           medienHinweis={aufgabeDialog.medien}
           laeuft={aufgabeLaeuft}
-          erstellen={(modus: Aufgabenmodus, frist: Date | null, codes: number | null, zeit: number | null) => void aufgabeErstellen(aufgabeDialog.quiz, modus, frist, codes, zeit)}
+          erstellen={(modus: Aufgabenmodus, frist: Date | null, codes: number | null, zeit: number | null, mischen: boolean) =>
+            void aufgabeErstellen(aufgabeDialog.quiz, modus, frist, codes, zeit, mischen)
+          }
           abbrechen={() => setAufgabeDialog(null)}
         />
       )}

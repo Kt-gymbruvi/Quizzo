@@ -55,7 +55,9 @@ Außerdem in Etappe 4: Punkte pro Frage (keine/normal/doppelt), Quiz importieren
   jede Frage einmal, Punkte ohne Zeitbonus; Ergebnistabelle und CSV-Export; Löschung 7 Tage nach der Frist
 - ✅ Prüfung – Etappe 8, veröffentlicht: 1–60 Pseudonym-Codes zum Ausdrucken (Name nur auf Papier),
   keine Lösungen auf dem Handy, Codes bei Gerätewechsel freigeben; Löschung spätestens nach 30 Tagen
-  (Ideen für später: Fragen in zufälliger Reihenfolge, Medien auf dem Handy erlauben, Frist verlängern)
+  (Ideen für später: Medien auf dem Handy erlauben, Frist verlängern)
+- ✅ Mischen – Etappe 14 (SQL `013`, noch nicht veröffentlicht): bei Hausaufgabe und Prüfung bekommt jede Person Fragen und
+  Antwortmöglichkeiten in eigener Reihenfolge (fest pro Person, Neuladen ändert nichts); Folien bleiben an ihrem Platz
 - ✅ Zeitlimit pro Frage für Hausaufgabe und Prüfung – Etappe 9, veröffentlicht (gegen Nachschlagen/KI-Hilfe; verhindert sie nicht ganz)
 - ✅ Klassen-Duell (Jeopardy-Stil) – Etappe 11–13, veröffentlicht: in „Meine Quizze“ 2–6 Quizze abhaken
   (= Kategorien), 2–6 Teams, 3–5 Felder (100–500 Punkte), Fragen der Reihe nach oder zufällig, optional Abzug bei

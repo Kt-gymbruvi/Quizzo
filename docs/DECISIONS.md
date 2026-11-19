@@ -2,6 +2,9 @@
 
 Neue Entscheidungen oben anfügen: Datum/Etappe, Entscheidung, Grund, verworfene Alternativen.
 
+## Etappen 14–18 (November 2026)
+- **Mischen nur in der Anzeige** (Etappe 14): Reihenfolge wird auf dem Handy aus der Teilnehmer-ID berechnet (fester Zufall), der Server speichert und bewertet weiter mit den Original-Nummern. Grund: keine Änderung an Bewertung/Ergebnissen nötig, Neuladen ändert nichts. Nur Hausaufgabe/Prüfung (beim Selbstlernen ohne Nutzen). Folien bleiben an ihrem Platz, weil sie meist die nächste Frage einleiten.
+
 ## Plattform
 - **Statische App auf GitHub Pages + Supabase (Frankfurt), kein eigener Server.** Kostenlos, wartungsarm, Daten in der EU. Logik, die nicht manipulierbar sein darf (Punkte, Prüfung von Fragen/Antworten, Rechte), liegt in SQL-Funktionen (`antwort_bewerten`, `frage_gueltig`, RLS).
 - **HashRouter** statt BrowserRouter: GitHub Pages kann keine Weiterleitungen für Unterseiten.

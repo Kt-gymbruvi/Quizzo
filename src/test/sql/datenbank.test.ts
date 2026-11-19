@@ -857,6 +857,23 @@ describe('Datenbank', () => {
       })
     })
 
+    describe('Mischen (Hausaufgabe, Prüfung)', () => {
+      it('nur bei Hausaufgabe und Prüfung; Zustand und Ergebnisse melden es', async () => {
+        await expect(rpc(db, A, 'aufgabe_erstellen', [quizId, 'selbstlernen', null, null, null, true])).rejects.toThrow('Mischen gibt es nur')
+        const mit = await rpc<Erstellt>(db, A, 'aufgabe_erstellen', [quizId, 'hausaufgabe', inTagen(2), null, null, true])
+        const ohne = await rpc<Erstellt>(db, A, 'aufgabe_erstellen', [quizId, 'hausaufgabe', inTagen(2), null]) // alte Aufrufe ohne Mischen
+        const b = await rpc<Beitritt>(db, ANONYM, 'aufgabe_beitreten', [mit.code, 'Luchs'])
+        expect(await rpc(db, ANONYM, 'aufgabe_zustand', [b.teilnehmer_id, b.token])).toMatchObject({ mischen: true })
+        expect(await rpc(db, A, 'aufgabe_ergebnisse', [mit.id])).toMatchObject({ mischen: true })
+        expect(await rpc(db, A, 'aufgabe_ergebnisse', [ohne.id])).toMatchObject({ mischen: false })
+        const liste = await rpc<{ id: string; mischen: boolean }[]>(db, A, 'aufgaben_liste', [])
+        expect(liste.find((x) => x.id === mit.id)?.mischen).toBe(true)
+        // Antworten werden immer mit den Original-Nummern bewertet
+        expect(await antworten(mit.code, b, 0, [1])).toMatchObject({ anteil: 1 })
+        await expect(rpc(db, ANONYM, 'aufgabe_erstellen', [quizId, 'pruefung', inTagen(1), 1, null, true])).rejects.toThrow(/permission denied/)
+      })
+    })
+
     describe('Rechte und automatisches Löschen', () => {
       it('Schüler haben keinen Tabellenzugriff, fremde Lehrkräfte sehen nichts', async () => {
         for (const t of ['aufgaben', 'aufgabe_teilnehmer', 'aufgabe_antworten', 'aufgabe_statistik']) {

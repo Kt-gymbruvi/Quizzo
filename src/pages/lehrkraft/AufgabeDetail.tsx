@@ -107,6 +107,7 @@ export default function AufgabeDetail() {
           <p className="mt-2 text-xl text-white/75">
             {e.frist ? `${e.modus === 'pruefung' ? 'Ende' : 'Abgabe bis'}: ${datum.format(new Date(e.frist))}` : 'Ohne Frist – läuft, bis du sie beendest'}
             {e.mit_zeit && ' · ⏱ mit Zeitlimit pro Frage'}
+            {e.mischen && ' · 🔀 Fragen und Antworten gemischt'}
           </p>
           <p className="text-lg text-white/60">
             🔒 {e.loeschen_am ? `Alle Ergebnisse werden am ${tag.format(new Date(e.loeschen_am))} automatisch gelöscht.` : info.datenschutz}

@@ -38,6 +38,8 @@ export type AufgabeUebersicht = {
   offen: boolean
   /** Zeitlimit pro Frage (Hausaufgabe/Prüfung) */
   mit_zeit?: boolean
+  /** Fragen und Antworten für jede Person gemischt */
+  mischen?: boolean
   teilnehmer: number
   abgegeben: number
   versuche: number
@@ -82,6 +84,8 @@ export type AufgabeZustand = Omit<AufgabeInfo, 'fragen' | 'anzahl_fragen'> & {
   antworten: { frage_nr: number; anteil?: number; punkte?: number; loesung?: unknown; zu_spaet?: boolean }[]
   /** Zeitlimit pro Frage */
   mit_zeit?: boolean
+  /** Fragen und Antworten in eigener Reihenfolge (fest an die Teilnehmer-ID gebunden) */
+  mischen?: boolean
   /** geöffnete, noch nicht beantwortete Fragen mit Restzeit */
   geoeffnet?: { frage_nr: number; restzeit_ms: number | null }[]
 }
@@ -96,15 +100,19 @@ async function aufruf<T>(funktion: string, args: Record<string, unknown>): Promi
 }
 
 // --- Lehrkraft ---
-/** zeit: null = ohne Zeitlimit, 0 = Zeiten aus dem Quiz, sonst feste Sekunden pro Frage (nur Hausaufgabe/Prüfung) */
-export const erstelleAufgabe = (quizId: string, modus: Aufgabenmodus, frist: Date | null, codes: number | null, zeit: number | null = null) =>
+/**
+ * zeit: null = ohne Zeitlimit, 0 = Zeiten aus dem Quiz, sonst feste Sekunden pro Frage (nur Hausaufgabe/Prüfung)
+ * mischen: Fragen und Antworten für jede Person anders ordnen (nur Hausaufgabe/Prüfung)
+ */
+export const erstelleAufgabe = (quizId: string, modus: Aufgabenmodus, frist: Date | null, codes: number | null, zeit: number | null = null, mischen = false) =>
   aufruf<{ id: string; code: string }>('aufgabe_erstellen', {
     p_quiz_id: quizId,
     p_modus: modus,
     p_frist: frist ? frist.toISOString() : null,
     p_codes: modus === 'pruefung' ? codes : null,
-    // nur mitschicken, wenn gewählt – so klappt es auch mit einer Datenbank ohne Migration 008
+    // nur mitschicken, wenn gewählt – so klappt es auch mit einer Datenbank ohne Migration 008 bzw. 013
     ...(modus !== 'selbstlernen' && zeit !== null ? { p_zeit: zeit } : {}),
+    ...(modus !== 'selbstlernen' && mischen ? { p_mischen: true } : {}),
   })
 export const ladeAufgaben = () => aufruf<AufgabeUebersicht[]>('aufgaben_liste', {})
 export const ladeErgebnisse = (id: string) => aufruf<AufgabeErgebnis | null>('aufgabe_ergebnisse', { p_aufgabe: id })

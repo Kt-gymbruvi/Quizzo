@@ -88,6 +88,29 @@ describe('Aufgaben: Lehrkraft', () => {
     expect(fakeSupabase.rpc).toHaveBeenCalledWith('aufgabe_erstellen', expect.objectContaining({ p_modus: 'pruefung', p_codes: 24 }))
   })
 
+  it('Mischen ist bei Hausaufgabe/Prüfung voreingestellt und lässt sich abschalten', async () => {
+    rpcAntworten({ aufgaben_liste: [], aufgabe_erstellen: { id: 'a1', code: 'ABC234' } })
+    fakeSupabase.from.mockImplementation(() =>
+      abfrage({ data: [{ id: 'q1', titel: 'Erdkunde', geaendert_am: '2026-11-06T10:00:00Z', fragen: [{ count: 3 }] }], error: null }),
+    )
+    const erstellt = () => fakeSupabase.rpc.mock.calls.filter(([n]) => n === 'aufgabe_erstellen').map(([, a]) => a)
+    const { unmount } = renderApp('/leiten')
+    await userEvent.click(await screen.findByRole('button', { name: 'Erdkunde als Aufgabe verteilen' }))
+    expect(screen.queryByRole('checkbox', { name: /mischen/ })).not.toBeInTheDocument() // nicht bei Selbstlernen
+    await userEvent.click(screen.getByRole('radio', { name: 'Prüfung' }))
+    expect(screen.getByRole('checkbox', { name: /mischen/ })).toBeChecked()
+    await userEvent.click(screen.getByRole('button', { name: 'Aufgabe erstellen' }))
+    expect(erstellt()[0]).toMatchObject({ p_modus: 'pruefung', p_mischen: true })
+    unmount()
+    renderApp('/leiten')
+    await userEvent.click(await screen.findByRole('button', { name: 'Erdkunde als Aufgabe verteilen' }))
+    await userEvent.click(screen.getByRole('radio', { name: 'Hausaufgabe' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: /mischen/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Aufgabe erstellen' }))
+    expect(erstellt()[1]).toMatchObject({ p_modus: 'hausaufgabe' })
+    expect(erstellt()[1].p_mischen).toBeFalsy()
+  })
+
   const ergebnis: AufgabeErgebnis = {
     id: 'a1',
     code: 'ABC234',
@@ -231,6 +254,36 @@ describe('Aufgaben: Schüler am Handy', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Falsch' }))
     expect(await screen.findByText('Abgegeben!')).toBeInTheDocument()
     expect(ladeUebungen()).toEqual([])
+  })
+
+  it('Prüfung gemischt: eigene Reihenfolge, der Server bekommt die Original-Nummern', async () => {
+    const VIER: SchuelerFrage = { ...MC, text: 'Wie viele Beine hat ein Hund?', ansicht: { antworten: ['zwei', 'drei', 'vier', 'sechs'], mehrfach: false } }
+    const fragen = [FOLIE, MC, WF, VIER]
+    let antworten: AufgabeZustand['antworten'] = []
+    rpcAntworten({
+      aufgabe_oeffnen: info({ modus: 'pruefung', frist: '2026-11-06T12:00:00Z' }),
+      aufgabe_beitreten: { teilnehmer_id: 't1', token: 'geheim', name: 'K7F-2QM' },
+      aufgabe_zustand: () => zustand({ modus: 'pruefung', name: 'K7F-2QM', punkte: null, mischen: true, fragen, antworten }),
+      aufgabe_antworten: (a: Record<string, unknown>) => {
+        antworten = [...antworten, { frage_nr: a.p_frage_nr as number }]
+        return { ok: true, abgegeben: antworten.length === 3 }
+      },
+    })
+    renderApp('/aufgabe/ABC234')
+    await userEvent.type(await screen.findByLabelText('Dein Prüfungscode (vom Zettel)'), 'K7F2QM')
+    await userEvent.click(screen.getByRole('button', { name: 'Los geht’s!' }))
+    // die Folie bleibt vorn
+    expect(await screen.findByText('Gleich geht es los.')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Weiter' }))
+    for (let i = 0; i < 3; i++) {
+      if (screen.queryByText('Hauptstadt von Frankreich?')) await userEvent.click(await screen.findByRole('button', { name: /Paris/ }))
+      else if (screen.queryByText('Wale sind Fische.')) await userEvent.click(screen.getByRole('button', { name: 'Falsch' }))
+      else await userEvent.click(await screen.findByRole('button', { name: /vier/ }))
+      if (i < 2) await screen.findByText(`Frage ${i + 2} von 3`, { exact: false })
+    }
+    expect(await screen.findByText('Abgegeben!')).toBeInTheDocument()
+    const gesendet = fakeSupabase.rpc.mock.calls.filter(([n]) => n === 'aufgabe_antworten').map(([, a]) => [a.p_frage_nr, a.p_antwort])
+    expect([...gesendet].sort((x, y) => (x[0] as number) - (y[0] as number))).toEqual([[1, [1]], [2, false], [3, [2]]])
   })
 
   it('beendete Aufgabe und unbekannter Code', async () => {

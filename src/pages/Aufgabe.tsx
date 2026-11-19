@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Knopf, Logo, Meldung, ZurueckLink } from '../components.tsx'
 import { Einpassen } from '../einpassen.tsx'
@@ -20,6 +20,7 @@ import {
   type Aufgabenmodus,
 } from '../lib/aufgaben.ts'
 import { FRAGETYPEN } from '../lib/fragetypen.ts'
+import { fragenReihenfolge, mischeFrage } from '../lib/mischen.ts'
 import { useCountdown, type SchuelerFrage } from '../lib/spiel.ts'
 import { fehlerText } from '../lib/supabase.ts'
 import { ladeUebungen, merkeErgebnis } from '../lib/wiederholung.ts'
@@ -260,12 +261,17 @@ function Bearbeiten({
   const [hinweis, setHinweis] = useState<string | null>(null)
   const sekunden = useCountdown(uhr?.restzeit_ms, `uhr-${uhr?.nr}`)
   const [erledigt, setErledigt] = useState<Set<number>>(() => new Set(start?.antworten.map((a) => a.frage_nr) ?? []))
+  // Gemischt: eigene Reihenfolge für diese Person (fest an die Teilnehmer-ID gebunden). `pos` zählt die
+  // Stelle in dieser Reihenfolge, `nr` ist die Nummer der Frage im Quiz (für den Server).
+  const gemischtFuer = einmalig && start?.mischen && teilnahme ? teilnahme.teilnehmer_id : null
+  const ordnung = useMemo(() => (gemischtFuer ? fragenReihenfolge(fragen, gemischtFuer) : fragen.map((_, i) => i)), [fragen, gemischtFuer])
   // erste noch offene Frage (Folien davor überspringen wir beim Weitermachen)
   const erste = () => {
-    const i = fragen.findIndex((f, n) => f.typ !== 'folie' && !erledigt.has(n))
+    const i = ordnung.findIndex((n) => fragen[n].typ !== 'folie' && !erledigt.has(n))
     return einmalig ? (i < 0 ? fragen.length : erledigt.size ? i : 0) : 0
   }
-  const [nr, setNr] = useState(erste)
+  const [pos, setPos] = useState(erste)
+  const nr = ordnung[pos] ?? fragen.length
   const [rueck, setRueck] = useState<Rueckmeldung | null>(null)
   const [ergebnisse, setErgebnisse] = useState<Record<number, number>>(() =>
     Object.fromEntries((start?.antworten ?? []).filter((a) => typeof a.anteil === 'number').map((a) => [a.frage_nr, a.anteil as number])),
@@ -275,15 +281,16 @@ function Bearbeiten({
   const [beendet, setBeendet] = useState(start ? !start.offen : false)
   const [sendet, setSendet] = useState(false)
 
+  /** nächste Stelle in der Reihenfolge, die noch offen ist */
   const naechste = (ab: number) => {
     let i = ab + 1
-    while (einmalig && i < fragen.length && erledigt.has(i)) i++
+    while (einmalig && i < fragen.length && erledigt.has(ordnung[i])) i++
     return i
   }
   function weiter() {
     setRueck(null)
     setFehler(null)
-    setNr((n) => naechste(n))
+    setPos((p) => naechste(p))
   }
 
   /** Fehler der Server-Funktionen einheitlich behandeln */
@@ -292,7 +299,7 @@ function Bearbeiten({
     if (/schon beantwortet/.test(text)) {
       setErledigt((s) => new Set(s).add(nr))
       setUhr(null)
-      setNr((n) => naechste(n))
+      setPos((p) => naechste(p))
     } else if (/beendet/.test(text)) {
       setBeendet(true)
     } else {
@@ -338,7 +345,7 @@ function Bearbeiten({
       if (r.punkte) setPunkte((p) => p + (r.punkte ?? 0))
       if (modus === 'pruefung') {
         if (r.zu_spaet) setHinweis('Die Zeit für die letzte Frage war abgelaufen.')
-        setNr((n) => naechste(n))
+        setPos((p) => naechste(p))
       } else {
         merkeErgebnis(frage, r.loesung, anteil)
         setRueck({ frage, anteil, punkte: r.punkte, loesung: r.loesung, zuSpaet: r.zu_spaet })
@@ -359,19 +366,20 @@ function Bearbeiten({
     }
   }, [sekunden, uhr, nr, rueck])
 
-  const fertig = nr >= fragen.length
+  const fertig = pos >= fragen.length
   const anzahl = fragen.filter((f) => f.typ !== 'folie').length
+  // „Frage 3 von 8“: zählt in der (ggf. gemischten) Reihenfolge, ohne Folien
+  const position = ordnung.slice(0, pos + 1).filter((n) => fragen[n].typ !== 'folie').length
   let inhalt
 
   if (beendet && !fertig) {
     inhalt = <Beendet text={modus === 'hausaufgabe' ? `Bis dahin hast du ${punkte} Punkte gesammelt.` : undefined} />
   } else if (rueck) {
-    inhalt = <RueckmeldungAnzeige r={rueck} modus={modus} weiter={weiter} letzte={naechste(nr) >= fragen.length} />
+    inhalt = <RueckmeldungAnzeige r={rueck} modus={modus} weiter={weiter} letzte={naechste(pos) >= fragen.length} />
   } else if (fertig) {
-    inhalt = <Fertig modus={modus} ergebnisse={ergebnisse} fragen={fragen} punkte={punkte} nochmal={() => { setErgebnisse({}); setNr(0) }} />
+    inhalt = <Fertig modus={modus} ergebnisse={ergebnisse} fragen={fragen} punkte={punkte} nochmal={() => { setErgebnisse({}); setPos(0) }} />
   } else if (mitZeit && fragen[nr].typ !== 'folie' && uhr?.nr !== nr) {
     // Zeitlimit: erst bestätigen, dann startet die Zeit
-    const position = fragen.slice(0, nr + 1).filter((f) => f.typ !== 'folie').length
     inhalt = (
       <section className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
         <p className="text-6xl" aria-hidden="true">
@@ -392,7 +400,8 @@ function Bearbeiten({
     )
   } else {
     const frage = inhalte[nr] ?? fragen[nr]
-    const position = fragen.slice(0, nr + 1).filter((f) => f.typ !== 'folie').length
+    // Gemischt: Antwortmöglichkeiten in eigener Reihenfolge, Antworten gehen im Original-Format an den Server
+    const anzeige = gemischtFuer ? mischeFrage(frage, `${gemischtFuer}:${nr}`) : { frage, zurueck: (a: unknown) => a }
     const laeuft = uhr?.nr === nr
     inhalt = (
       <div className="flex min-h-0 flex-1 flex-col gap-3">
@@ -422,7 +431,7 @@ function Bearbeiten({
         ) : laeuft && sekunden === 0 ? (
           <p className="m-auto text-3xl font-black">⏱ Zeit abgelaufen</p>
         ) : (
-          <HandyEingabe key={nr} frage={frage} senden={senden} />
+          <HandyEingabe key={nr} frage={anzeige.frage} senden={(a) => senden(anzeige.zurueck(a))} />
         )}
         {sendet && <p className="shrink-0 text-center text-white/70">Wird gesendet …</p>}
         {fehler && <Meldung art="fehler">{fehler}</Meldung>}
