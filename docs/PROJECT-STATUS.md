@@ -1,7 +1,7 @@
 # Projektstand – Quizzo
 
 Stand: 19.11.2026 · live unter https://kt-gymbruvi.github.io/Quizzo/ · `main` lokal 5 Etappen vor `origin/main` (Etappen 14–18, `e6b956e`), **nicht veröffentlicht**
-Tests: 20 Testdateien, 351 Tests grün (`npm test`); Build grün.
+Tests: 21 Testdateien, 373 Tests grün (`npm test`); Build grün.
 
 ## Implementiert und veröffentlicht
 - **Lehrkraft:** Anmeldung nur für eingeladene Konten, Passwort ändern/setzen (Einladungs-/Reset-Link `#/passwort`).
@@ -18,11 +18,13 @@ Tests: 20 Testdateien, 351 Tests grün (`npm test`); Build grün.
 - **Etappe 16 – Diagnose** (ohne SQL): nach dem Live-Spiel schwere Fragen, häufigste Fehler, Wiederholungs-Quiz anlegen.
 - **Etappe 17 – Klassen-Challenge** (SQL `015`): alle gemeinsam, Klassenfortschritt in % mit Medaillen statt Rangliste.
 - **Etappe 18 – Von Hand bewerten** (SQL `016`): offene Fragen (optional 1000 Zeichen) in Hausaufgabe/Prüfung mit ✗ / ½ / ✓ bewerten, Freitext umbewerten.
+- **Etappe 19 – Wortwolke neu + Ton** (ohne SQL, noch nicht committet): Wortwolke mit der Frage in der Mitte und schwebenden Wörtern (`src/wortwolke.tsx`); Musik und Effekte am Beamer (`src/klang/`): Quizzo im Kahoot-Stil, Klassen-Duell im Jeopardy-Stil, 🔊/🔇-Schalter. Gleiches in Klassenfunk (Lounge). Nur per Test und Vorschau der Wolke geprüft – **Klang noch nicht gehört**, Lautstärke/Geschmack bitte am Beamer prüfen.
 - **Vor dem Veröffentlichen:** Migrationen `013`–`016` der Reihe nach im SQL Editor ausführen (`supabase/EINRICHTUNG.md`, Abschnitte 16–19), dann pushen.
 
 ## Struktur
 ```
-src/App.tsx, main.tsx, components.tsx, einpassen.tsx, index.css
+src/App.tsx, main.tsx, components.tsx, einpassen.tsx, wortwolke.tsx, index.css
+src/klang/            motor (Web Audio), noten, hooks (Ton-Schalter), quizzo (Kahoot-Stil), duell (Jeopardy-Stil)
 src/pages/            Startseite, Mitspielen, Aufgabe, Wiederholen, Buzzer, QuizLeiten
 src/pages/lehrkraft/  Anmelden, Passwort, QuizListe, QuizEditor (+ editor/), SpielStarten, SpielLeiten,
                       SpielDiagnose, Aufgabe*, Duell, DuellEinrichten

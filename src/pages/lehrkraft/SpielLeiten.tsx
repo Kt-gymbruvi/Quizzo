@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import QRCode from 'qrcode'
 import { Knopf, Meldung } from '../../components.tsx'
 import { Einpassen } from '../../einpassen.tsx'
 import { FRAGETYPEN } from '../../lib/fragetypen.ts'
 import { BeamerAuswertung, BeamerFrage, BeamerMedium } from '../../spiel/Beamer.tsx'
+import { TonSchalter, useEffektBei, useSchleife } from '../../klang/hooks.tsx'
+import { AUFLOESEN, FRAGE, FRAGE_DRINGEND, LOBBY, SIEG, START } from '../../klang/quizzo.ts'
 import {
   entferneSpieler,
   ladeLehrkraftZustand,
@@ -44,6 +46,20 @@ export default function SpielLeiten() {
   const signal = useSpielKanal(id, laden)
   useRegelmaessig(laden, 1500)
   const sekunden = useCountdown(z?.restzeit_ms, `${z?.status}-${z?.frage_nr}`)
+
+  // Ton am Beamer: Musik in Lobby und Frage (nicht, wenn die Frage selbst Ton/Video hat), Effekte beim Wechsel
+  const frageArt = z?.frage?.medium?.art
+  const eigenerTon = frageArt === 'audio' || frageArt === 'video' || frageArt === 'youtube'
+  const musik = useMemo(() => {
+    if (!z) return null
+    if (z.status === 'lobby') return LOBBY
+    if (z.status === 'frage' && z.frage && z.frage.typ !== 'folie' && !eigenerTon) return sekunden !== null && sekunden <= 5 && sekunden > 0 ? FRAGE_DRINGEND : FRAGE
+    return null
+  }, [z, eigenerTon, sekunden])
+  useSchleife(musik)
+  const istFolie = z?.frage?.typ === 'folie'
+  const ereignis = !z ? null : z.status === 'ende' ? `ende-${z.runde ?? 1}` : (z.status === 'frage' || z.status === 'auswertung') && !istFolie ? `${z.status}-${z.frage_nr}-${z.runde ?? 1}` : null
+  useEffektBei(ereignis, z?.status === 'frage' ? START : z?.status === 'auswertung' ? AUFLOESEN : z?.status === 'ende' ? SIEG : null)
 
   const steuern = useCallback(
     async (aktion: 'weiter' | 'aufloesen') => {
@@ -149,6 +165,7 @@ export default function SpielLeiten() {
           {z.status !== 'lobby' && (
             <span className="rounded-xl bg-white/10 px-4 py-2 font-bold">PIN {z.pin}</span>
           )}
+          <TonSchalter />
           <Knopf art="leise" className="!text-lg" onClick={() => beenden(true)}>
             {z.status === 'lobby' ? 'Abbrechen' : 'Spiel beenden'}
           </Knopf>
@@ -425,7 +442,8 @@ function Auswertung({ z, beschaeftigt, weiter }: { z: LehrkraftZustand; beschaef
           </Knopf>
         }
       />
-      <h2 className="text-4xl font-extrabold leading-tight">{z.frage.text}</h2>
+      {/* Die Wortwolke zeigt die Frage selbst in ihrer Mitte */}
+      {z.frage.typ !== 'wortwolke' && <h2 className="text-4xl font-extrabold leading-tight">{z.frage.text}</h2>}
       <div className={`grid flex-1 gap-8 ${bewertet ? 'lg:grid-cols-[3fr_2fr]' : ''}`}>
         <BeamerAuswertung frage={z.frage} antworten={z.antworten} />
         {bewertet && (

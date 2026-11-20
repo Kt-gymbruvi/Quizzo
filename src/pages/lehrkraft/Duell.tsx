@@ -25,6 +25,9 @@ import { ladeQuiz } from '../../lib/quizze.ts'
 import { fehlerText } from '../../lib/supabase.ts'
 import { TEAMS } from '../../lib/teams.ts'
 import { buzzerLink, neuerBuzzerPin, useBuzzerLehrkraft, type BuzzerZustand } from '../../lib/buzzer.ts'
+import { TonSchalter, useEffektBei, useSchleife } from '../../klang/hooks.tsx'
+import { spieleEffekt } from '../../klang/motor.ts'
+import { BRETT, BUZZER, DENKPAUSE, FALSCH, FELD, NIEMAND, RICHTIG, SIEG, ZEIT_AUS } from '../../klang/duell.ts'
 
 // Klassen-Duell (Jeopardy-Stil) am Beamer: Brett mit Kategorien und Punktefeldern, Teams ohne Handys.
 // Der Spielstand bleibt nur auf diesem Gerät (localStorage); auf dem Server wird nichts gespeichert.
@@ -106,6 +109,11 @@ export default function Duell() {
     [stand, kategorien, offen, dran, gesperrt, runde],
   )
   const { verbunden } = useBuzzerLehrkraft(einstellung?.buzzer ? (stand?.pin ?? null) : null, buzzerZustand, (team) => setDran(team))
+
+  // Ton: Brett füllt sich beim Start, Fanfare am Ende (Musik und Signale der Frage: siehe FrageFeld)
+  const beendet = ende || (!!stand && alleErledigt(stand) && !offen)
+  useEffektBei(stand && !offen && !beendet && Object.keys(stand.felder).length === 0 ? 'brett' : null, BRETT)
+  useEffektBei(beendet ? 'ende' : null, SIEG)
 
   function feldOeffnen(k: number, z: number) {
     setDran(null)
@@ -198,6 +206,7 @@ export default function Duell() {
               )}
             </>
           )}
+          <TonSchalter />
           <Knopf art="leise" className="!py-2 !text-lg" onClick={() => navigate('/leiten')}>
             Zu meinen Quizzen
           </Knopf>
@@ -220,15 +229,18 @@ export default function Duell() {
             gesperrt={gesperrt}
             zurueck={() => setOffen(null)}
             richtig={(team) => {
+              spieleEffekt(RICHTIG)
               aendere(schliesseFeld(punkte(stand, team, wertVon(offen.z)), feldSchluessel(offen.k, offen.z), team))
               setOffen(null)
             }}
             falsch={(team) => {
+              spieleEffekt(FALSCH)
               aendere(punkte(stand, team, -wertVon(offen.z)))
               setGesperrt((g) => [...g, team])
               buzzerFreigeben() // ein anderes Team darf buzzern
             }}
             niemand={() => {
+              spieleEffekt(NIEMAND)
               aendere(schliesseFeld(stand, feldSchluessel(offen.k, offen.z), null))
               setOffen(null)
             }}
@@ -370,6 +382,13 @@ function FrageFeld({
   const beamer = useMemo(() => alsBeamerFrage(frage), [frage])
   const [loesung, setLoesung] = useState(false)
   const [rest, setRest] = useState<number | null>(null)
+
+  // Ton: Feld öffnet sich, „Denkpause“-Musik solange die Zeit läuft, Signal bei Zeitablauf und beim Buzzern
+  const eigenerTon = frage.medium?.art === 'audio' || frage.medium?.art === 'video' || frage.medium?.art === 'youtube'
+  useEffektBei('offen', FELD)
+  useSchleife(rest !== null && rest > 0 && !eigenerTon ? DENKPAUSE : null)
+  useEffektBei(rest === 0 ? 'zeit-aus' : null, ZEIT_AUS)
+  useEffektBei(buzzer?.dran != null ? `team-${buzzer.dran}` : null, BUZZER)
 
   useEffect(() => {
     if (rest === null || rest <= 0) return

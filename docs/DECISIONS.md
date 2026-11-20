@@ -42,3 +42,8 @@ Neue Entscheidungen oben anfügen: Datum/Etappe, Entscheidung, Grund, verworfene
 ## Qualität
 - Tests sprechen nie mit dem echten Server: UI mit `fakeSupabase`, SQL-Migrationen mit PGlite gegen einen Supabase-Nachbau inkl. RLS und Rechten von `anon`/`authenticated`.
 - SQL-Änderungen nur als nummerierte Dateien; die Lehrkraft führt sie selbst im SQL Editor aus.
+
+## Wortwolke und Ton (Etappe 19, nur lokal)
+- **Wortwolke:** Die Frage steht in der Mitte (`src/wortwolke.tsx`), die Wörter liegen spiralförmig darum (häufigste am nächsten, Größe = Häufigkeit), überlappungsfrei und ohne Zufall berechnet; jedes Wort kreist per CSS-Animation (`wolke-schweben`) leicht um seinen Platz und bleibt in Bewegung (aus bei „Bewegung reduzieren“). Alles in `cqw`, daher gleichmäßig skalierbar. Dieselbe Datei liegt in Klassenfunk (Repos bleiben getrennt).
+- **Ton nur am Beamer**, Handys bleiben stumm (Klassenzimmer!). Keine Audiodateien: `src/klang/motor.ts` erzeugt alles mit der Web-Audio-API, die Stücke sind eigene Kompositionen *im Stil* von Kahoot (`quizzo.ts`: Lobby, Frage, Endspurt, Auflösung, Fanfare) und Jeopardy (`duell.ts`: Denkpause, Buzzer, Ding, Summer) – bewusst keine nachgebauten Originalmelodien (Urheberrecht).
+- Musik läuft nicht, wenn die Frage selbst Audio/Video hat (sonst Überlagerung). 🔊/🔇-Schalter in der Kopfzeile, Wahl im localStorage (`ton-an`), Standard: an. Browser starten Audio erst nach einer Berührung (Motor wacht beim ersten Tippen auf).

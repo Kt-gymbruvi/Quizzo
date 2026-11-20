@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { ANTWORT_STIL, FALSCH_STIL, WAHR_STIL } from '../lib/antwortStil.ts'
 import { lueckenAus, type Medium } from '../lib/fragetypen.ts'
 import { normalisiere, type AbgegebeneAntwort, type LehrkraftFrage } from '../lib/spiel.ts'
+import { Wortwolke as WolkeMitFrage } from '../wortwolke.tsx'
 import { HotspotBild, imZiel } from './HotspotBild.tsx'
 
 // Beamer-Ansicht (Lehrkraft, iPad quer): Frage und Auswertung je Fragetyp
@@ -422,7 +423,7 @@ export function BeamerAuswertung({ frage, antworten }: { frage: LehrkraftFrage; 
       )
     }
     case 'wortwolke':
-      return <Wortwolke texte={antworten.map((a) => String(a.antwort ?? ''))} />
+      return <WortwolkeAuswertung frage={frage.text} texte={antworten.map((a) => String(a.antwort ?? ''))} />
     case 'offen':
       return <OffeneAntworten texte={antworten.map((a) => String(a.antwort ?? ''))} />
     case 'folie':
@@ -430,28 +431,16 @@ export function BeamerAuswertung({ frage, antworten }: { frage: LehrkraftFrage; 
   }
 }
 
-function Wortwolke({ texte }: { texte: string[] }) {
+const WOLKEN_FARBEN = ['text-quizzo-yellow', 'text-sky-300', 'text-rose-300', 'text-emerald-300', 'text-violet-300', 'text-white']
+
+/** Die Frage steht in der Mitte der Wolke (dort statt als Überschrift darüber) */
+function WortwolkeAuswertung({ frage, texte }: { frage: string; texte: string[] }) {
   const [versteckt, setVersteckt] = useState<Set<string>>(new Set())
   const gruppen = zaehleTexte(texte).filter((g) => !versteckt.has(g.schluessel))
-  const max = Math.max(1, ...gruppen.map((g) => g.anzahl))
-  const farben = ['text-quizzo-yellow', 'text-sky-300', 'text-rose-300', 'text-emerald-300', 'text-violet-300', 'text-white']
   if (texte.length === 0) return <Hinweis>Keine Antworten.</Hinweis>
   return (
     <div className="flex flex-col gap-3">
-      <ul className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 rounded-3xl bg-white/5 px-8 py-10" aria-label="Wortwolke">
-        {gruppen.map((g, i) => (
-          <li key={g.schluessel}>
-            <button
-              onClick={() => setVersteckt(new Set(versteckt).add(g.schluessel))}
-              title="Antippen zum Ausblenden"
-              className={`font-black leading-none transition hover:line-through ${farben[i % farben.length]}`}
-              style={{ fontSize: `${1.5 + (g.anzahl / max) * 3.5}rem` }}
-            >
-              {g.text}
-            </button>
-          </li>
-        ))}
-      </ul>
+      <WolkeMitFrage frage={frage} woerter={gruppen} waehle={(s) => setVersteckt(new Set(versteckt).add(s))} farben={WOLKEN_FARBEN} frageKlasse="bg-white text-quizzo-navy" />
       <p className="text-center text-lg text-white/60">Antippen blendet ein Wort am Beamer aus.</p>
     </div>
   )
