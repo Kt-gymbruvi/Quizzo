@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 @theme {
-  --color-quizzo-navy: #0b1f4d;
-  --color-quizzo-navy-light: #16327a;
-  --color-quizzo-navy-dark: #061233;
-  --color-quizzo-yellow: #ffc928;
-  --color-quizzo-yellow-dark: #e6ac00;
+  --color-quizzo-navy: #0f5c47;
+  --color-quizzo-navy-light: #16745a;
+  --color-quizzo-navy-dark: #0a3d30;
+  --color-quizzo-yellow: #ff8a14;
+  --color-quizzo-yellow-dark: #e06f00;
 }
 
 html,

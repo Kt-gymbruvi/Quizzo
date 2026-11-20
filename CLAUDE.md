@@ -23,7 +23,7 @@ Schwesterprojekte (eigene Repos, gleiche Supabase-Datenbank): Klassenfunk (`../K
 - Schüleransicht: für Handys optimiert (Hochformat, große Tippflächen).
 - Lehrkraft-Ansicht: für iPad im Querformat am Beamer, große Schrift, gut lesbar aus der Ferne.
 - Kein Scrollen im Spiel: Beamer- und Handy-Ansichten sind genau eine Bildschirmhöhe; was nicht passt, verkleinert `<Einpassen>` (`src/einpassen.tsx`) gleichmäßig.
-- Design: Dunkelblau und Gelb (Farben `quizzo-navy` / `quizzo-yellow` im `@theme`-Block von `src/index.css`, Tailwind v4).
+- Design: Dunkelgrün und Orange, einheitlich mit Startseite, Klassenfunk und Tafel (die Token heißen weiterhin `quizzo-navy` / `quizzo-yellow` im `@theme`-Block von `src/index.css`, Tailwind v4; Werte `#0f5c47` / `#ff8a14`).
 - Routing per HashRouter (URLs wie `…/Quizzo/#/mitspielen`), damit GitHub Pages ohne Weiterleitungen funktioniert.
 - Supabase-URL und publishable-Schlüssel stehen in `.env.production` (eingecheckt) bzw. `.env.local` (lokal); Vorlage: `.env.example`.
 

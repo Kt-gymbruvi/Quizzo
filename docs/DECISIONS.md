@@ -48,3 +48,6 @@ Neue Entscheidungen oben anfügen: Datum/Etappe, Entscheidung, Grund, verworfene
 - **Ton nur am Beamer**, Handys bleiben stumm (Klassenzimmer!). Keine Audiodateien: `src/klang/motor.ts` erzeugt alles mit der Web-Audio-API, die Stücke sind eigene Kompositionen *im Stil* von Kahoot (`quizzo.ts`: Lobby, Frage, Endspurt, Auflösung, Fanfare) und Jeopardy (`duell.ts`: Denkpause, Buzzer, Ding, Summer) – bewusst keine nachgebauten Originalmelodien (Urheberrecht).
 - **Klassen-Duell: 60 Sekunden automatisch.** Sobald eine Frage geöffnet wird, laufen 60 s ab (`DUELL_ZEIT` in `Duell.tsx`, unabhängig vom Zeitlimit der Frage) und die Denkpause-Musik startet von selbst; „↻ Neu starten“ setzt die Zeit zurück. Bei Fragen mit Audio/Video/YouTube bleibt die Musik aus.
 - Musik läuft nicht, wenn die Frage selbst Audio/Video hat (sonst Überlagerung). 🔊/🔇-Schalter in der Kopfzeile, Wahl im localStorage (`ton-an`), Standard: an. Browser starten Audio erst nach einer Berührung (Motor wacht beim ersten Tippen auf).
+
+## Einheitliche Farben (Dunkelgrün und Orange, lokal)
+- Startseite, Quizzo, Klassenfunk, Tafel (Lehrraum) und Notenbuch nutzen dieselbe Palette: Dunkelgrün `#0f5c47`, Orange `#ff8a14`. Quizzo und Klassenfunk behalten ihre Token-Namen (`quizzo-navy`, `funk-petrol` …), nur die Werte wurden getauscht. Logos von Quizzo (`public/logo*.png`) sind per Farbtausch umgefärbt.

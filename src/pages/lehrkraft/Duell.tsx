@@ -546,7 +546,7 @@ function BuzzerHinweis({ pin, verbunden, teams }: { pin: string; verbunden: numb
   const link = buzzerLink(pin)
   const [qr, setQr] = useState<string | null>(null)
   useEffect(() => {
-    QRCode.toDataURL(link, { margin: 1, width: 240, color: { dark: '#0b1f4d', light: '#ffffff' } })
+    QRCode.toDataURL(link, { margin: 1, width: 240, color: { dark: '#0f5c47', light: '#ffffff' } })
       .then(setQr)
       .catch(() => setQr(null))
   }, [link])

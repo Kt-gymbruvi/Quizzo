@@ -160,7 +160,7 @@ function Teilen({ code, modus }: { code: string; modus: AufgabeErgebnis['modus']
   const link = aufgabenLink(code)
   const [qr, setQr] = useState<string | null>(null)
   useEffect(() => {
-    QRCode.toDataURL(link, { margin: 1, width: 360, color: { dark: '#0b1f4d', light: '#ffffff' } })
+    QRCode.toDataURL(link, { margin: 1, width: 360, color: { dark: '#0f5c47', light: '#ffffff' } })
       .then(setQr)
       .catch(() => setQr(null))
   }, [link])
