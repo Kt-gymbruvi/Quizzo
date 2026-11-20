@@ -29,6 +29,9 @@ import { TonSchalter, useEffektBei, useSchleife } from '../../klang/hooks.tsx'
 import { spieleEffekt } from '../../klang/motor.ts'
 import { BRETT, BUZZER, DENKPAUSE, FALSCH, FELD, NIEMAND, RICHTIG, SIEG, ZEIT_AUS } from '../../klang/duell.ts'
 
+/** Sekunden, die nach dem Öffnen einer Frage im Klassen-Duell automatisch ablaufen */
+const DUELL_ZEIT = 60
+
 // Klassen-Duell (Jeopardy-Stil) am Beamer: Brett mit Kategorien und Punktefeldern, Teams ohne Handys.
 // Der Spielstand bleibt nur auf diesem Gerät (localStorage); auf dem Server wird nichts gespeichert.
 
@@ -381,18 +384,19 @@ function FrageFeld({
 }) {
   const beamer = useMemo(() => alsBeamerFrage(frage), [frage])
   const [loesung, setLoesung] = useState(false)
-  const [rest, setRest] = useState<number | null>(null)
+  // Mit dem Öffnen der Frage laufen automatisch DUELL_ZEIT Sekunden ab (unabhängig vom Zeitlimit der Frage)
+  const [rest, setRest] = useState<number>(DUELL_ZEIT)
 
   // Ton: Feld öffnet sich, „Denkpause“-Musik solange die Zeit läuft, Signal bei Zeitablauf und beim Buzzern
   const eigenerTon = frage.medium?.art === 'audio' || frage.medium?.art === 'video' || frage.medium?.art === 'youtube'
   useEffektBei('offen', FELD)
-  useSchleife(rest !== null && rest > 0 && !eigenerTon ? DENKPAUSE : null)
+  useSchleife(rest > 0 && !eigenerTon ? DENKPAUSE : null)
   useEffektBei(rest === 0 ? 'zeit-aus' : null, ZEIT_AUS)
   useEffektBei(buzzer?.dran != null ? `team-${buzzer.dran}` : null, BUZZER)
 
   useEffect(() => {
-    if (rest === null || rest <= 0) return
-    const t = setTimeout(() => setRest((r) => (r === null ? r : r - 1)), 1000)
+    if (rest <= 0) return
+    const t = setTimeout(() => setRest((r) => r - 1), 1000)
     return () => clearTimeout(t)
   }, [rest])
 
@@ -404,18 +408,15 @@ function FrageFeld({
           {kategorie.titel} · <span className="text-quizzo-yellow">{wert} Punkte</span>
         </p>
         <div className="flex items-center gap-3">
-          {rest === null ? (
-            <Knopf art="leise" onClick={() => setRest(frage.zeitlimit)}>
-              ⏱ Zeit starten ({frage.zeitlimit} s)
-            </Knopf>
-          ) : (
-            <span
-              className={`flex h-20 w-20 items-center justify-center rounded-full text-4xl font-black tabular-nums ${rest <= 5 ? 'bg-red-500 text-white' : 'bg-quizzo-yellow text-quizzo-navy'}`}
-              aria-label="Verbleibende Sekunden"
-            >
-              {rest}
-            </span>
-          )}
+          <span
+            className={`flex h-20 w-20 items-center justify-center rounded-full text-4xl font-black tabular-nums ${rest <= 5 ? 'bg-red-500 text-white' : 'bg-quizzo-yellow text-quizzo-navy'}`}
+            aria-label="Verbleibende Sekunden"
+          >
+            {rest}
+          </span>
+          <Knopf art="leise" onClick={() => setRest(DUELL_ZEIT)}>
+            ↻ Neu starten
+          </Knopf>
           <Knopf art="leise" onClick={zurueck}>
             ← Zurück zum Brett
           </Knopf>

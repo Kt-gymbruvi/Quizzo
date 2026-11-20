@@ -153,6 +153,8 @@ describe('Klassen-Duell: Oberfläche', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Erdkunde für 200' }))
     expect(screen.getByRole('heading', { name: 'Der Rhein fließt durch Paris.' })).toBeInTheDocument()
+    // Die Zeit läuft sofort mit 60 Sekunden, ohne extra Knopf (auch bei Frage mit kürzerem Zeitlimit)
+    expect(screen.getByLabelText('Verbleibende Sekunden')).toHaveTextContent(/^(60|59)$/)
     await userEvent.click(screen.getByRole('button', { name: 'Lösung zeigen' }))
     expect(screen.getByLabelText('Lösung')).toHaveTextContent('Falsch')
     // Team Blau liegt falsch (−200), Team Rot richtig (+200)
