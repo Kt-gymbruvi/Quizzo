@@ -12,6 +12,7 @@ export type Stimme =
   | 'streicher' // Flächenklang
   | 'blech' // Fanfare
   | 'buzz' // elektronischer Summer
+  | 'alarm' // schriller, lauter Buzzer
   | 'kick'
   | 'snare'
   | 'klatsch'
@@ -246,6 +247,22 @@ function spieleNote(c: AudioContext, bus: AudioNode, n: Note, t: number, sek: nu
       g.gain.linearRampToValueAtTime(0.2 * laut, t + 0.01)
       g.gain.setValueAtTime(0.2 * laut, t + dauer)
       g.gain.exponentialRampToValueAtTime(0.0001, t + dauer + 0.06)
+      break
+    }
+    case 'alarm': {
+      // Schriller, rauer Quiz-Buzzer: drei verstimmte Sägezahn-/Rechteckschwingungen, offener Filter,
+      // Rauschstoß im Anschlag und sofort volle Lautstärke („reingegrätscht“)
+      const lp = filter(c, 'lowpass', 4200, g, 1.4)
+      const ende = t + dauer + 0.1
+      schwingung(c, 'sawtooth', f, t, ende, lp, -14)
+      schwingung(c, 'sawtooth', f, t, ende, lp, 14)
+      schwingung(c, 'square', f * 1.5, t, ende, lp, 6)
+      const bp = filter(c, 'bandpass', 2600, g, 0.9)
+      geraeusch(c, t, t + 0.09, bp)
+      g.gain.setValueAtTime(0.0001, t)
+      g.gain.linearRampToValueAtTime(0.5 * laut, t + 0.004)
+      g.gain.setValueAtTime(0.46 * laut, t + dauer)
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dauer + 0.05)
       break
     }
     case 'kick': {

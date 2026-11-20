@@ -63,10 +63,13 @@ export const FELD: Stueck = {
 /** Ein Team hat gebuzzert */
 export const BUZZER: Stueck = {
   bpm: 120,
-  laut: 0.75,
+  laut: 1.2,
   noten: [
-    { t: 0, stimme: 'buzz', ton: m('A5'), dauer: 0.18, laut: 1 },
-    { t: 0.3, stimme: 'buzz', ton: m('E6'), dauer: 0.3, laut: 1 },
+    // zwei harte Schläge „BZZT-BZZZT“, der zweite höher und länger, dazu Knall von Bassdrum und Snare
+    { t: 0, stimme: 'alarm', ton: m('A4'), dauer: 0.3, laut: 1.2 },
+    { t: 0.4, stimme: 'alarm', ton: m('E5'), dauer: 0.7, laut: 1.3 },
+    { t: 0, stimme: 'kick', laut: 1.3 },
+    { t: 0.4, stimme: 'snare', laut: 1.3 },
   ],
 }
 

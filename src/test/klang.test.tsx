@@ -7,7 +7,7 @@ import * as duell from '../klang/duell.ts'
 import * as quizzo from '../klang/quizzo.ts'
 import { BREITE, HOEHE, legeWolkeAus } from '../wortwolke.tsx'
 
-const MELODISCH = new Set(['pluck', 'lead', 'bass', 'rhodes', 'glocke', 'streicher', 'blech', 'buzz'])
+const MELODISCH = new Set(['pluck', 'lead', 'bass', 'rhodes', 'glocke', 'streicher', 'blech', 'buzz', 'alarm'])
 const alle = (modul: Record<string, unknown>) => Object.entries(modul).filter((e): e is [string, Stueck] => typeof e[1] === 'object' && e[1] !== null && 'noten' in e[1])
 
 describe('Klänge', () => {
