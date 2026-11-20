@@ -3,15 +3,32 @@ import { Link } from 'react-router-dom'
 import { useAuth } from './lib/auth.tsx'
 import { supabase } from './lib/supabase.ts'
 
+const LOGO = `${import.meta.env.BASE_URL}logo.png`
+const LOGO_SYMBOL = `${import.meta.env.BASE_URL}logo-symbol.png`
+
+/** Großes Logo (Startseite) bzw. kleines Q-Zeichen mit Schriftzug (Kopfzeilen). */
 export function Logo({ gross = false }: { gross?: boolean }) {
+  if (gross) {
+    return (
+      <h1>
+        <img src={LOGO} alt="Quizzo" className="mx-auto h-56 w-auto drop-shadow-[0_6px_0_rgba(0,0,0,0.25)] sm:h-72 lg:h-96" />
+      </h1>
+    )
+  }
   return (
-    <h1
-      className={`font-black tracking-tight text-quizzo-yellow drop-shadow-[0_4px_0_rgba(0,0,0,0.35)] ${
-        gross ? 'text-7xl sm:text-8xl lg:text-9xl' : 'text-4xl'
-      }`}
-    >
-      Quizzo
+    <h1 className="flex items-center gap-3">
+      <Marke />
     </h1>
+  )
+}
+
+/** Q-Zeichen mit Schriftzug „Quizzo“ in Gelb, für Kopfzeilen von Spiel und Beamer. */
+export function Marke({ klein = false }: { klein?: boolean }) {
+  return (
+    <>
+      <img src={LOGO_SYMBOL} alt="" className={`shrink-0 rounded-xl ${klein ? 'h-9 w-9' : 'h-12 w-12'}`} />
+      <span className={`font-black tracking-tight text-quizzo-yellow ${klein ? 'text-2xl' : 'text-4xl'}`}>Quizzo</span>
+    </>
   )
 }
 

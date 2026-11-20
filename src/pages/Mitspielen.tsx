@@ -1,7 +1,7 @@
 import { KlassenBalken, medailleFuer } from '../spiel/KlassenBalken.tsx'
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Knopf, Logo, Meldung, ZurueckLink } from '../components.tsx'
+import { Knopf, Logo, Marke, Meldung, ZurueckLink } from '../components.tsx'
 import { HandyAuswertung, HandyEingabe } from '../spiel/Handy.tsx'
 import { Einpassen } from '../einpassen.tsx'
 import {
@@ -195,7 +195,7 @@ function SchuelerSpiel({ teilnahme, verlassen }: { teilnahme: Teilnahme; verlass
           Frage {(z?.frage_nr ?? 0) + 1}/{z?.anzahl_fragen}
         </span>
       ) : (
-        <span className="text-2xl font-black text-quizzo-yellow">Quizzo</span>
+        <span className="flex items-center gap-2"><Marke klein /></span>
       )}
       {frageLaeuft && sekunden != null && (
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-quizzo-yellow text-2xl font-black text-quizzo-navy tabular-nums" aria-label="Restzeit">

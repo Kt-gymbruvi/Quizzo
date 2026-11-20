@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Knopf, Meldung } from '../../components.tsx'
+import { Knopf, Marke, Meldung } from '../../components.tsx'
 import { Einpassen } from '../../einpassen.tsx'
 import { BeamerFrage, BeamerMedium } from '../../spiel/Beamer.tsx'
 import {
@@ -193,7 +193,7 @@ export default function Duell() {
     <main className="flex h-dvh flex-col gap-4 overflow-hidden px-6 py-4 lg:px-10">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-3">
         <div className="flex items-baseline gap-4">
-          <span className="text-4xl font-black text-quizzo-yellow">Quizzo</span>
+          <span className="flex items-center gap-2"><Marke /></span>
           <span className="text-2xl font-bold text-white/80">🏆 Klassen-Duell</span>
         </div>
         <div className="flex flex-wrap items-center gap-2">

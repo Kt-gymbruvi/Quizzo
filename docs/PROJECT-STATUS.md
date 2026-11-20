@@ -47,3 +47,6 @@ beispiele/            alle-fragetypen.quizzo.json (public/beispiele/zelle.svg f�
 1. Veröffentlichte Etappen 14–19 kurz im Unterricht ausprobieren (inkl. Klang am Beamer).
 2. SMTP in Supabase einrichten (Voraussetzung für Kolleg:innen-Einladungen).
 3. Ideen aus `FAHRPLAN.md`: Medien optional auf den Handys, Teams selbst wählen, Prüfungsfrist verlängern.
+
+## Logo
+Quizzo-Logo eingebaut (`public/logo.png` freigestellt, `public/logo-symbol.png` als Q-Zeichen/Favicon): groß auf der Startseite, als Zeichen mit Schriftzug (`Marke`) in Kopfzeilen von Spiel, Beamer und Duell. Noch nicht veröffentlicht.

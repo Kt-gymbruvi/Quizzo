@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import QRCode from 'qrcode'
-import { Knopf, Meldung } from '../../components.tsx'
+import { Knopf, Marke, Meldung } from '../../components.tsx'
 import { Einpassen } from '../../einpassen.tsx'
 import { FRAGETYPEN } from '../../lib/fragetypen.ts'
 import { BeamerAuswertung, BeamerFrage, BeamerMedium } from '../../spiel/Beamer.tsx'
@@ -155,7 +155,7 @@ export default function SpielLeiten() {
     <main className="flex h-dvh flex-col gap-4 overflow-hidden px-8 py-5 lg:px-12">
       <header className="flex shrink-0 items-center justify-between gap-4">
         <div className="flex items-baseline gap-5">
-          <span className="text-4xl font-black text-quizzo-yellow">Quizzo</span>
+          <span className="flex items-center gap-2"><Marke /></span>
           <span className="text-2xl text-white/70">
             {z.quiz_titel}
             {(z.runde ?? 1) > 1 && <span className="ml-3 rounded-lg bg-quizzo-yellow px-3 py-1 text-xl font-extrabold text-quizzo-navy">Runde {z.runde}</span>}
