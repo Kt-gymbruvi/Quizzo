@@ -1,7 +1,7 @@
 // Klassen-Duell (Jeopardy-Stil): Teams spielen am Beamer, ohne Handys.
 // Jedes gewählte Quiz wird eine Kategorie, seine Fragen werden Felder mit 100 bis 500 Punkten.
 // Es werden keine Daten auf dem Server gespeichert – der Spielstand liegt nur auf dem Lehrkraft-Gerät.
-import { FRAGETYPEN, lueckenAus, type Frage } from './fragetypen.ts'
+import { FRAGETYPEN, alleZiele, lueckenAus, type Frage } from './fragetypen.ts'
 import { normalisiere, type Ansicht, type LehrkraftFrage } from './spiel.ts'
 import { zahl } from '../spiel/Beamer.tsx'
 
@@ -163,7 +163,7 @@ export function alsBeamerFrage(f: Frage, zufallszahl: () => number = Math.random
       break
     }
     case 'hotspot':
-      ansicht = { bild: f.inhalt.bild.url, beschreibung: f.inhalt.bild.beschreibung ?? null }
+      ansicht = { bild: f.inhalt.bild.url, beschreibung: f.inhalt.bild.beschreibung ?? null, anzahl: f.inhalt.alle ? alleZiele(f.inhalt).length : null }
       break
   }
   return { ...f, ansicht } as LehrkraftFrage

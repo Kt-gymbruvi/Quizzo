@@ -34,6 +34,8 @@ export type Ansicht = {
   /** Hotspot: Bildadresse und Beschreibung */
   bild?: string
   beschreibung?: string | null
+  /** Hotspot „alle Bereiche“: so viele Stellen müssen angetippt werden */
+  anzahl?: number | null
 }
 
 export type LehrkraftFrage = Frage & { ansicht: Ansicht }

@@ -1,9 +1,9 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { ANTWORT_STIL, FALSCH_STIL, WAHR_STIL } from '../../../lib/antwortStil.ts'
-import { GRENZEN, MAX_ABLENKER, MAX_ANTWORTEN, MAX_BEGRIFFE, MAX_KATEGORIEN, lueckenAus, offenMaxZeichen, type Frage, type Inhalte } from '../../../lib/fragetypen.ts'
+import { GRENZEN, MAX_ABLENKER, MAX_ANTWORTEN, MAX_BEGRIFFE, MAX_HOTSPOT_ZIELE, MAX_KATEGORIEN, lueckenAus, offenMaxZeichen, type Frage, type HotspotZiel as Ziel, type Inhalte } from '../../../lib/fragetypen.ts'
 import { DATEI_REGELN, ladeHoch } from '../../../lib/medien.ts'
 import { fehlerText } from '../../../lib/supabase.ts'
-import { HotspotBild } from '../../../spiel/HotspotBild.tsx'
+import { HotspotBild, alleZiele } from '../../../spiel/HotspotBild.tsx'
 
 // Typabhängige Eingabefelder im Quiz-Editor
 
@@ -503,7 +503,15 @@ function HotspotFelder({ nr, inhalt, setze, hochgeladen }: Props<'hotspot'> & { 
   const [laedt, setLaedt] = useState(false)
   const [fehler, setFehler] = useState<string | null>(null)
   const dateiWahl = useRef<HTMLInputElement>(null)
-  const { bild, ziel } = inhalt
+  const { bild } = inhalt
+  const ziele = alleZiele(inhalt)
+  const [aktiv, setAktiv] = useState(0)
+  const nr0 = Math.min(aktiv, ziele.length - 1)
+  const ziel = ziele[nr0]
+  // schreibt alle Bereiche; `ziel` bleibt der erste (für ältere App-Versionen)
+  const setzeZiele = (neu: Ziel[], neuesBild = bild, alle = inhalt.alle) =>
+    setze({ bild: neuesBild, ziel: neu[0], ...(neu.length > 1 ? { ziele: neu } : {}), ...(neu.length > 1 && alle ? { alle: true } : {}) })
+  const aendere = (teil: Partial<Ziel>) => setzeZiele(ziele.map((z, i) => (i === nr0 ? { ...z, ...teil } : z)))
 
   async function dateiGewaehlt(datei: File | undefined) {
     if (!datei) return
@@ -513,7 +521,7 @@ function HotspotFelder({ nr, inhalt, setze, hochgeladen }: Props<'hotspot'> & { 
       const m = await ladeHoch(datei, 'bild')
       if (m.art !== 'bild') return
       if (m.pfad) hochgeladen(m.pfad)
-      setze({ bild: { url: m.url, ...(m.pfad ? { pfad: m.pfad } : {}), ...(bild.beschreibung ? { beschreibung: bild.beschreibung } : {}) }, ziel })
+      setzeZiele(ziele, { url: m.url, ...(m.pfad ? { pfad: m.pfad } : {}), ...(bild.beschreibung ? { beschreibung: bild.beschreibung } : {}) })
     } catch (err) {
       setFehler(fehlerText(err))
     } finally {
@@ -533,7 +541,7 @@ function HotspotFelder({ nr, inhalt, setze, hochgeladen }: Props<'hotspot'> & { 
   return (
     <div className="flex flex-col gap-3">
       <p className="text-base text-white/70">
-        Lade ein Bild hoch (z. B. Karte, Zellbild, Diagramm) und tippe darauf, um die richtige Stelle festzulegen. Das Bild erscheint am Beamer und auf den Handys.
+        Lade ein Bild hoch (z. B. Karte, Zellbild, Diagramm) und tippe darauf, um die richtige Stelle festzulegen – bei Bedarf auch mehrere Bereiche. Das Bild erscheint am Beamer und auf den Handys.
       </p>
       <input ref={dateiWahl} type="file" hidden accept={DATEI_REGELN.bild.typen.join(',')} onChange={(e) => dateiGewaehlt(e.target.files?.[0])} aria-label={`Bild für Frage ${nr}`} data-testid={`hotspot-datei-${nr}`} />
       <div className="flex flex-wrap items-center gap-3">
@@ -545,16 +553,64 @@ function HotspotFelder({ nr, inhalt, setze, hochgeladen }: Props<'hotspot'> & { 
       {bild.url && (
         <>
           <div className="rounded-2xl bg-black/20 p-3">
-            <HotspotBild url={bild.url} beschreibung={bild.beschreibung} hoehe="max-h-[28rem]" ziel={ziel} tippen={(p) => setze({ bild, ziel: { ...ziel, x: p.x, y: p.y } })} />
+            <HotspotBild url={bild.url} beschreibung={bild.beschreibung} hoehe="max-h-[28rem]" ziele={ziele} aktiv={nr0} tippen={(p) => aendere({ x: p.x, y: p.y })} />
           </div>
-          <p className="text-base text-white/70">Grün = richtige Stelle. Ins Bild tippen verschiebt sie, mit den Reglern änderst du die Größe.</p>
+          <p className="text-base text-white/70">
+            Grün = richtige Stelle (ein Tipp in irgendeinen Bereich zählt). Ins Bild tippen verschiebt den gewählten Bereich (gelber Rand), mit den Reglern änderst du die Größe.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {ziele.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                aria-pressed={i === nr0}
+                aria-label={`Frage ${nr} Bereich ${i + 1} wählen`}
+                onClick={() => setAktiv(i)}
+                className={`rounded-xl px-4 py-2 text-base font-bold ${i === nr0 ? 'bg-quizzo-yellow text-quizzo-navy' : 'bg-white/10 text-white hover:bg-white/20'}`}
+              >
+                Bereich {i + 1}
+              </button>
+            ))}
+            {ziele.length < MAX_HOTSPOT_ZIELE && (
+              <button
+                type="button"
+                className={hinzuKnopf}
+                aria-label={`Frage ${nr} Bereich hinzufügen`}
+                onClick={() => {
+                  setzeZiele([...ziele, { x: 50, y: 50, b: 20, h: 20 }])
+                  setAktiv(ziele.length)
+                }}
+              >
+                + Bereich
+              </button>
+            )}
+            {ziele.length > 1 && (
+              <button
+                type="button"
+                aria-label={`Frage ${nr} Bereich ${nr0 + 1} entfernen`}
+                onClick={() => {
+                  setzeZiele(ziele.filter((_, i) => i !== nr0))
+                  setAktiv(Math.max(0, nr0 - 1))
+                }}
+                className="rounded-xl bg-red-500/20 px-4 py-2 text-base font-bold text-red-200 hover:bg-red-500/30"
+              >
+                Bereich {nr0 + 1} entfernen
+              </button>
+            )}
+          </div>
+          {ziele.length > 1 && (
+            <label className="flex items-center gap-3 text-lg font-semibold">
+              <input type="checkbox" checked={!!inhalt.alle} onChange={(e) => setzeZiele(ziele, bild, e.target.checked)} aria-label={`Frage ${nr} alle Bereiche nötig`} className="h-6 w-6 accent-quizzo-yellow" />
+              Schüler müssen alle Bereiche antippen ({ziele.length} Tipps; Teilpunkte pro getroffenem Bereich)
+            </label>
+          )}
           <div className="flex flex-wrap gap-6">
-            {regler('Breite', ziel.b, (b) => setze({ bild, ziel: { ...ziel, b } }))}
-            {regler('Höhe', ziel.h, (h) => setze({ bild, ziel: { ...ziel, h } }))}
+            {regler('Breite', ziel.b, (b) => aendere({ b }))}
+            {regler('Höhe', ziel.h, (h) => aendere({ h }))}
           </div>
           <input
             value={bild.beschreibung ?? ''}
-            onChange={(e) => setze({ bild: { ...bild, beschreibung: e.target.value }, ziel })}
+            onChange={(e) => setzeZiele(ziele, { ...bild, beschreibung: e.target.value })}
             maxLength={GRENZEN.beschreibung}
             placeholder="Bildbeschreibung für Screenreader (optional)"
             aria-label={`Frage ${nr} Bildbeschreibung`}

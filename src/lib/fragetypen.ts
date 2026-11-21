@@ -17,7 +17,19 @@ export type Inhalte = {
   /** Lücken im Text als [Lösung|andere Schreibweise]; modus auswahl = Lösungen (+ Ablenker) zum Auswählen */
   lueckentext: { lueckentext: string; modus: 'auswahl' | 'eingabe'; ablenker?: string[] }
   /** Zielbereich in Prozent der Bildbreite/-höhe: Mitte (x, y), Breite b, Höhe h */
-  hotspot: { bild: HotspotBild; ziel: { x: number; y: number; b: number; h: number } }
+  hotspot: { bild: HotspotBild; ziel: HotspotZiel; ziele?: HotspotZiel[]; alle?: boolean }
+}
+/** Ein richtiger Bereich im Bild (Mitte x/y, Breite b, Höhe h – alles in Prozent). `ziel` ist immer der erste Bereich, `ziele` enthält alle. */
+export type HotspotZiel = { x: number; y: number; b: number; h: number }
+export const MAX_HOTSPOT_ZIELE = 30
+
+/** Alle richtigen Bereiche: neue Fragen haben `ziele`, ältere nur `ziel`; die Lösung vom Server ist eine Liste (alt: ein einzelner Bereich). */
+export function alleZiele(inhalt: unknown): HotspotZiel[] {
+  if (Array.isArray(inhalt)) return inhalt as HotspotZiel[]
+  const i = (inhalt ?? {}) as { ziel?: HotspotZiel; ziele?: HotspotZiel[] }
+  if (Array.isArray(i.ziele) && i.ziele.length > 0) return i.ziele
+  if (i.ziel && typeof i.ziel.x === 'number') return [i.ziel]
+  return typeof (inhalt as HotspotZiel | null)?.x === 'number' ? [inhalt as HotspotZiel] : []
 }
 export type HotspotBild = { url: string; pfad?: string; beschreibung?: string }
 export type FrageTyp = keyof Inhalte
@@ -197,13 +209,16 @@ export function bereinigeFrage(f: Frage): Frage {
     case 'hotspot': {
       const { url, pfad, beschreibung } = f.inhalt.bild
       const runde = (n: number) => Math.round(n * 10) / 10
-      const z = f.inhalt.ziel
+      const ziele = alleZiele(f.inhalt).map((z) => ({ x: runde(z.x), y: runde(z.y), b: runde(z.b), h: runde(z.h) }))
       return {
         ...basis,
         typ: 'hotspot',
         inhalt: {
           bild: { url: t(url), ...(pfad ? { pfad } : {}), ...(t(beschreibung) ? { beschreibung: t(beschreibung) } : {}) },
-          ziel: { x: runde(z.x), y: runde(z.y), b: runde(z.b), h: runde(z.h) },
+          ziel: ziele[0],
+          // bei nur einem Bereich bleibt das Format wie bisher
+          ...(ziele.length > 1 ? { ziele } : {}),
+          ...(ziele.length > 1 && f.inhalt.alle ? { alle: true } : {}),
         },
       }
     }
@@ -331,12 +346,14 @@ export function pruefeFrage(roh: Frage): string[] {
       break
     }
     case 'hotspot': {
-      const { bild, ziel } = f.inhalt
+      const { bild } = f.inhalt
       if (!bild.url) fehler.push('Bitte ein Bild hochladen.')
       else if (!/^https:\/\/[^\s"<>]+$/.test(bild.url) || bild.url.length > 1000) fehler.push('Die Adresse des Bildes ist ungültig.')
       if ((bild.beschreibung ?? '').length > GRENZEN.beschreibung) fehler.push(`Die Bildbeschreibung ist zu lang (höchstens ${GRENZEN.beschreibung} Zeichen).`)
       const zahlOk = (n: number, lo: number, hi: number) => Number.isFinite(n) && n >= lo && n <= hi
-      if (!zahlOk(ziel.x, 0, 100) || !zahlOk(ziel.y, 0, 100) || !zahlOk(ziel.b, 2, 100) || !zahlOk(ziel.h, 2, 100)) fehler.push('Bitte den Zielbereich im Bild festlegen.')
+      const ziele = alleZiele(f.inhalt)
+      if (ziele.length === 0 || ziele.some((z) => !zahlOk(z.x, 0, 100) || !zahlOk(z.y, 0, 100) || !zahlOk(z.b, 2, 100) || !zahlOk(z.h, 2, 100))) fehler.push('Bitte den Zielbereich im Bild festlegen.')
+      if (ziele.length > MAX_HOTSPOT_ZIELE) fehler.push(`Zu viele Bereiche (höchstens ${MAX_HOTSPOT_ZIELE}).`)
       break
     }
   }
@@ -480,14 +497,20 @@ function importiereFrage(r: Roh): Frage {
       break
     case 'hotspot': {
       const b = istObjekt(r.bild) ? r.bild : {}
-      const z = istObjekt(r.ziel) ? r.ziel : {}
+      const roh = Array.isArray(r.ziele) && r.ziele.length > 0 ? r.ziele : [r.ziel]
+      const ziele = roh.slice(0, MAX_HOTSPOT_ZIELE).map((x) => {
+        const z = istObjekt(x) ? x : {}
+        return { x: zahl(z.x, 50), y: zahl(z.y, 50), b: zahl(z.b, 20), h: zahl(z.h, 20) }
+      })
       basis.inhalt = {
         bild: {
           url: typeof b.url === 'string' ? b.url.trim() : '',
           ...(typeof b.pfad === 'string' ? { pfad: b.pfad } : {}),
           ...(typeof b.beschreibung === 'string' ? { beschreibung: b.beschreibung } : {}),
         },
-        ziel: { x: zahl(z.x, 50), y: zahl(z.y, 50), b: zahl(z.b, 20), h: zahl(z.h, 20) },
+        ziel: ziele[0],
+        ...(ziele.length > 1 ? { ziele } : {}),
+        ...(ziele.length > 1 && r.alle === true ? { alle: true } : {}),
       }
       break
     }

@@ -1,4 +1,5 @@
 import type { MouseEvent } from 'react'
+export { alleZiele } from '../lib/fragetypen.ts'
 
 // Bild einer Hotspot-Frage mit Markierungen. Alle Angaben in Prozent der Bildbreite/-höhe,
 // damit es auf jedem Bildschirm (Beamer, Handy, Editor) gleich passt.
@@ -20,7 +21,8 @@ export function HotspotBild({
   tippen,
   marker,
   punkte = [],
-  ziel,
+  ziele = [],
+  aktiv,
   zielBeschriftung = 'Zielbereich',
 }: {
   url: string
@@ -29,11 +31,13 @@ export function HotspotBild({
   hoehe?: string
   tippen?: (p: Punkt) => void
   /** eigene Wahl (gelber Kreis) */
-  marker?: Punkt | null
+  marker?: Punkt | Punkt[] | null
   /** Antworten aller (kleine Punkte, z. B. am Beamer) */
   punkte?: (Punkt & { richtig?: boolean })[]
-  /** Zielbereich (nur nach dem Auflösen / im Editor) */
-  ziel?: Ziel | null
+  /** richtige Bereiche (nur nach dem Auflösen / im Editor) */
+  ziele?: Ziel[]
+  /** Editor: der gerade bearbeitete Bereich (wird hervorgehoben) */
+  aktiv?: number
   zielBeschriftung?: string
 }) {
   return (
@@ -45,13 +49,14 @@ export function HotspotBild({
         onClick={tippen ? (e) => tippen(tippStelle(e)) : undefined}
         className={`block w-auto max-w-full select-none rounded-2xl bg-white/5 ${hoehe} ${tippen ? 'cursor-crosshair' : ''}`}
       />
-      {ziel && (
+      {ziele.map((ziel, i) => (
         <span
-          aria-label={zielBeschriftung}
-          className="pointer-events-none absolute rounded-lg border-4 border-green-400 bg-green-400/25"
+          key={`z${i}`}
+          aria-label={ziele.length > 1 ? `${zielBeschriftung} ${i + 1}` : zielBeschriftung}
+          className={`pointer-events-none absolute rounded-lg border-4 ${aktiv === i ? 'border-quizzo-yellow bg-green-400/40' : 'border-green-400 bg-green-400/25'}`}
           style={{ left: `${ziel.x - ziel.b / 2}%`, top: `${ziel.y - ziel.h / 2}%`, width: `${ziel.b}%`, height: `${ziel.h}%` }}
         />
-      )}
+      ))}
       {punkte.map((p, i) => (
         <span
           key={i}
@@ -59,16 +64,20 @@ export function HotspotBild({
           style={{ left: `${p.x}%`, top: `${p.y}%` }}
         />
       ))}
-      {marker && (
+      {(Array.isArray(marker) ? marker : marker ? [marker] : []).map((m, i) => (
         <span
+          key={`m${i}`}
           aria-label="Deine Wahl"
           className="pointer-events-none absolute h-9 w-9 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-quizzo-yellow bg-quizzo-yellow/30 shadow-lg"
-          style={{ left: `${marker.x}%`, top: `${marker.y}%` }}
+          style={{ left: `${m.x}%`, top: `${m.y}%` }}
         />
-      )}
+      ))}
     </div>
   )
 }
 
 /** Liegt der Punkt im Zielbereich? (wie antwort_bewerten in der Datenbank) */
 export const imZiel = (p: Punkt, z: Ziel) => Math.abs(p.x - z.x) <= z.b / 2 && Math.abs(p.y - z.y) <= z.h / 2
+
+/** Liegt der Punkt in einem der richtigen Bereiche? */
+export const inEinemZiel = (p: Punkt, ziele: Ziel[]) => ziele.some((z) => imZiel(p, z))

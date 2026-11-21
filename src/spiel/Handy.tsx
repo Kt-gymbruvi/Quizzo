@@ -5,7 +5,7 @@ import { FRAGETYPEN } from '../lib/fragetypen.ts'
 import { team, teamName } from '../lib/teams.ts'
 import type { SchuelerFrage, SchuelerZustand } from '../lib/spiel.ts'
 import { zahl } from './Beamer.tsx'
-import { HotspotBild, type Punkt, type Ziel } from './HotspotBild.tsx'
+import { HotspotBild, alleZiele, type Punkt } from './HotspotBild.tsx'
 import { KlassenBalken } from './KlassenBalken.tsx'
 
 // Handy-Ansicht (Schüler): Eingabe und Ergebnis je Fragetyp
@@ -88,7 +88,7 @@ export function HandyEingabe({ frage, senden }: { frage: SchuelerFrage; senden: 
     case 'lueckentext':
       return <Lueckentext teile={frage.ansicht.teile ?? []} optionen={frage.ansicht.optionen ?? null} maxZeichen={frage.ansicht.max_zeichen ?? 40} senden={senden} />
     case 'hotspot':
-      return <Hotspot bild={frage.ansicht.bild ?? ''} beschreibung={frage.ansicht.beschreibung} senden={senden} />
+      return <Hotspot bild={frage.ansicht.bild ?? ''} beschreibung={frage.ansicht.beschreibung} anzahl={frage.ansicht.anzahl ?? 1} senden={senden} />
     case 'folie':
       return (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
@@ -335,16 +335,31 @@ function Lueckentext({ teile, optionen, maxZeichen, senden }: { teile: string[];
   )
 }
 
-/** Hotspot: auf die richtige Stelle im Bild tippen, dann senden */
-function Hotspot({ bild, beschreibung, senden }: { bild: string; beschreibung?: string | null; senden: (a: unknown) => void }) {
-  const [punkt, setPunkt] = useState<Punkt | null>(null)
+/** Hotspot: auf die richtige Stelle im Bild tippen (bei `anzahl` > 1: auf alle gesuchten Stellen), dann senden */
+function Hotspot({ bild, beschreibung, anzahl, senden }: { bild: string; beschreibung?: string | null; anzahl: number; senden: (a: unknown) => void }) {
+  const [punkte, setPunkte] = useState<Punkt[]>([])
+  const mehrere = anzahl > 1
+  // der letzte Tipp ersetzt bei voller Anzahl den ältesten
+  const tippe = (p: Punkt) => setPunkte((alt) => (mehrere ? [...alt, p].slice(-anzahl) : [p]))
+  const hinweis = mehrere
+    ? punkte.length < anzahl
+      ? `Tippe auf alle gesuchten Stellen im Bild (${punkte.length} von ${anzahl}).`
+      : 'Du kannst noch ändern – oder senden.'
+    : punkte.length
+      ? 'Du kannst noch umentscheiden – oder senden.'
+      : 'Tippe auf die richtige Stelle im Bild.'
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
-      <p className="shrink-0 text-center text-base text-white/80">{punkt ? 'Du kannst noch umentscheiden – oder senden.' : 'Tippe auf die richtige Stelle im Bild.'}</p>
+      <p className="shrink-0 text-center text-base text-white/80">{hinweis}</p>
       <div className="flex min-h-0 flex-1 items-center justify-center">
-        <HotspotBild url={bild} beschreibung={beschreibung} tippen={setPunkt} marker={punkt} />
+        <HotspotBild url={bild} beschreibung={beschreibung} tippen={tippe} marker={punkte} />
       </div>
-      <Senden onClick={() => punkt && senden(punkt)} disabled={!punkt} />
+      {mehrere && punkte.length > 0 && (
+        <button type="button" onClick={() => setPunkte([])} className="shrink-0 self-center rounded-xl bg-white/10 px-4 py-2 text-base font-bold">
+          Markierungen löschen
+        </button>
+      )}
+      <Senden onClick={() => punkte.length === anzahl && senden(mehrere ? punkte : punkte[0])} disabled={punkte.length !== anzahl} />
     </div>
   )
 }
@@ -419,7 +434,7 @@ export function loesungText(frage: SchuelerFrage, loesung: unknown): ReactNode {
     case 'hotspot':
       return frage.ansicht.bild ? (
         <span className="mt-2 block">
-          <HotspotBild url={frage.ansicht.bild} beschreibung={frage.ansicht.beschreibung} hoehe="max-h-[30dvh]" ziel={loesung as Ziel} zielBeschriftung="richtige Stelle" />
+          <HotspotBild url={frage.ansicht.bild} beschreibung={frage.ansicht.beschreibung} hoehe="max-h-[30dvh]" ziele={alleZiele(loesung)} zielBeschriftung="richtige Stelle" />
         </span>
       ) : null
     default:

@@ -5,7 +5,7 @@
 
 import { FRAGETYPEN } from './fragetypen.ts'
 import { normalisiere, type SchuelerFrage } from './spiel.ts'
-import { imZiel, type Ziel } from '../spiel/HotspotBild.tsx'
+import { alleZiele, imZiel, inEinemZiel } from '../spiel/HotspotBild.tsx'
 
 export type Uebung = { id: string; frage: SchuelerFrage; loesung: unknown; gemerkt: number }
 
@@ -106,8 +106,11 @@ export function bewerte(u: Uebung, a: unknown): number {
       return luecken.filter((loesungen, i) => loesungen.some((x) => normalisiere(x) === normalisiere(String(wahl[i] ?? '')))).length / luecken.length
     }
     case 'hotspot': {
+      const ziele = alleZiele(l)
+      // mehrere Tipps = „alle Bereiche“: Anteil der getroffenen Bereiche
+      if (Array.isArray(a)) return ziele.filter((z) => a.some((p) => imZiel(p, z))).length / ziele.length
       const p = a as { x: number; y: number } | null
-      return p && imZiel(p, l as Ziel) ? 1 : 0
+      return p && inEinemZiel(p, ziele) ? 1 : 0
     }
     default:
       return 0

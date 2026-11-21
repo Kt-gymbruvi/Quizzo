@@ -288,6 +288,30 @@ describe('Datenbank', () => {
       await expect(bewerte('hotspot', h, { x: 40 })).rejects.toThrow('Ungültige Antwort')
       await expect(bewerte('hotspot', h, { x: 140, y: 5 })).rejects.toThrow('Ungültige Antwort')
     })
+    it('Hotspot mit mehreren Bereichen: ein Tipp in irgendeinem Bereich zählt', async () => {
+      const bild = { url: 'https://beispiel.supabase.co/storage/v1/object/public/quizzo-medien/u/karte.webp' }
+      const h = { bild, ziel: { x: 40, y: 60, b: 10, h: 8 }, ziele: [{ x: 40, y: 60, b: 10, h: 8 }, { x: 80, y: 20, b: 10, h: 10 }] }
+      expect(await bewerte('hotspot', h, { x: 40, y: 60 })).toBe(1)
+      expect(await bewerte('hotspot', h, { x: 82, y: 22 })).toBe(1)
+      expect(await bewerte('hotspot', h, { x: 60, y: 40 })).toBe(0)
+      // ungültiger zweiter Bereich und zu viele Bereiche werden abgelehnt
+      const gueltig = async (inhalt: unknown) => (await db.query<{ ok: boolean }>('select public.frage_gueltig($1, $2::jsonb) as ok', ['hotspot', JSON.stringify(inhalt)])).rows[0].ok
+      expect(await gueltig(h)).toBe(true)
+      expect(await gueltig({ ...h, ziele: [h.ziel, { x: 120, y: 20, b: 10, h: 10 }] })).toBe(false)
+      expect(await gueltig({ ...h, ziele: Array.from({ length: 31 }, () => h.ziel) })).toBe(false)
+      expect(await gueltig({ ...h, ziele: [] })).toBe(false)
+    })
+    it('Hotspot „alle Bereiche“: Anteil der getroffenen Bereiche, Antwort ist eine Liste', async () => {
+      const bild = { url: 'https://beispiel.supabase.co/storage/v1/object/public/quizzo-medien/u/karte.webp' }
+      const h = { bild, alle: true, ziel: { x: 20, y: 20, b: 10, h: 10 }, ziele: [{ x: 20, y: 20, b: 10, h: 10 }, { x: 80, y: 80, b: 10, h: 10 }] }
+      expect(await bewerte('hotspot', h, [{ x: 20, y: 20 }, { x: 80, y: 80 }])).toBe(1)
+      expect(await bewerte('hotspot', h, [{ x: 20, y: 20 }, { x: 50, y: 50 }])).toBe(0.5)
+      // zweimal derselbe Bereich zählt nur einmal
+      expect(await bewerte('hotspot', h, [{ x: 20, y: 20 }, { x: 21, y: 21 }])).toBe(0.5)
+      await expect(bewerte('hotspot', h, { x: 20, y: 20 })).rejects.toThrow('Ungültige Antwort')
+      await expect(bewerte('hotspot', h, [{ x: 1, y: 1 }, { x: 2, y: 2 }, { x: 3, y: 3 }])).rejects.toThrow('Ungültige Antwort')
+      await expect(bewerte('hotspot', h, [])).rejects.toThrow('Ungültige Antwort')
+    })
     it('Umfrage, Wortwolke, offene Frage: keine Punkte', async () => {
       expect(await bewerte('umfrage', { antworten: ['a', 'b'] }, [1])).toBe(0)
       expect(await bewerte('wortwolke', {}, 'Spaß')).toBe(0)

@@ -38,7 +38,7 @@ Gemeinsame Felder jeder Frage:
 | `folie` (Präsentationsfolie) | `folientext` (optional, max. 1000 Zeichen) | `"folientext": "Jetzt kommt Teil 2."` |
 | `kategorien` (Kategorisieren) | `kategorien`: 2–4 Gruppennamen (max. 40 Zeichen); `begriffe`: 2–12 `{ "text", "kategorie" }` (Gruppe als Position ab 0 oder als Name) | `"kategorien": ["Säugetier", "Vogel"], "begriffe": [{ "text": "Wal", "kategorie": 0 }]` |
 | `lueckentext` | `lueckentext`: Text (max. 600 Zeichen) mit 1–10 Lücken in eckigen Klammern, weitere Schreibweisen mit `\|`; `modus`: `"eingabe"` oder `"auswahl"`; bei Auswahl optional `ablenker` (bis 6 falsche Wörter) | `"lueckentext": "Die [Sonne] geht im [Osten\|O] auf.", "modus": "eingabe"` |
-| `hotspot` (Bild-Hotspot) | `bild`: `{ "url" (https), "pfad"?, "beschreibung"? }`; `ziel`: Mitte `x`, `y` und Größe `b`, `h` in Prozent des Bildes | `"bild": { "url": "https://…/zelle.svg" }, "ziel": { "x": 65, "y": 40, "b": 22, "h": 34 }` |
+| `hotspot` (Bild-Hotspot) | `bild`: `{ "url" (https), "pfad"?, "beschreibung"? }`; `ziel`: Mitte `x`, `y` und Größe `b`, `h` in Prozent des Bildes; optional `ziele`: Liste mehrerer richtiger Bereiche (bis 30, `ziel` = der erste), dazu `alle: true`, wenn die Schüler jeden Bereich antippen müssen (Teilpunkte pro Bereich) | `"bild": { "url": "https://…/zelle.svg" }, "ziel": { "x": 65, "y": 40, "b": 22, "h": 34 }` |
 
 Längen: Antworten max. 120 Zeichen, Freitext-Lösungen und Lücken max. 40, Sortier-Elemente max. 80, Zuordnungs-Begriffe und Kategorie-Begriffe max. 60.
 Kategorisieren und Lückentext geben Teilpunkte (pro Begriff bzw. pro Lücke). Das Bild einer Hotspot-Frage erscheint – anders als `medium` – auch auf den Handys.

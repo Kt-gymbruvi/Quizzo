@@ -14,6 +14,7 @@ Tests: 21 Testdateien, 373 Tests grün (`npm test`); Build grün.
 
 ## Etappen 14–19 (20.11.2026 veröffentlicht)
 - **Etappe 14 – Mischen** (SQL `013`): Fragen und Antworten bei Hausaufgabe/Prüfung pro Person gemischt.
+- **Migration 020 – Hotspot mit mehreren Bereichen**: `inhalt.ziele` (bis 30, `ziel` = erster Bereich, Abwärtskompatibilität; `alle: true` = Schüler tippen so viele Stellen wie Bereiche, Antwort ist eine Punkteliste, Teilpunkte pro getroffenem Bereich); Lösung vom Server ist nun eine Liste (`hotspot_ziele()`). Logo: weiße Schrift von Pixelresten bereinigt. **SQL 020 muss die Lehrkraft noch im SQL Editor ausführen.**
 - **Etappe 15 – Neue Fragetypen** (SQL `014`): Kategorisieren, Lückentext (eintippen/auswählen), Bild-Hotspot; Teilpunkte.
 - **Etappe 16 – Diagnose** (ohne SQL): nach dem Live-Spiel schwere Fragen, häufigste Fehler, Wiederholungs-Quiz anlegen.
 - **Etappe 17 – Klassen-Challenge** (SQL `015`): alle gemeinsam, Klassenfortschritt in % mit Medaillen statt Rangliste.

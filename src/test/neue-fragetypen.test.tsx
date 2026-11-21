@@ -88,6 +88,28 @@ describe('Neue Fragetypen: Bewertung auf dem Gerät (Wiederholung) wie auf dem S
     expect(bewerte(u, { x: 61, y: 50 })).toBe(0)
     expect(imZiel({ x: 40, y: 45 }, { x: 50, y: 50, b: 20, h: 10 })).toBe(true)
   })
+  it('Hotspot mit mehreren Bereichen: Lösung als Liste, alte Lösung als einzelner Bereich', () => {
+    const liste = [{ x: 20, y: 20, b: 10, h: 10 }, { x: 80, y: 80, b: 10, h: 10 }]
+    expect(bewerte(uebung(HOT, liste), { x: 81, y: 79 })).toBe(1)
+    expect(bewerte(uebung(HOT, liste), { x: 50, y: 50 })).toBe(0)
+    expect(bewerte(uebung(HOT, liste[0]), { x: 21, y: 19 })).toBe(1)
+  })
+  it('Hotspot „alle Bereiche“ beim Üben: Anteil der getroffenen Bereiche', () => {
+    const liste = [{ x: 20, y: 20, b: 10, h: 10 }, { x: 80, y: 80, b: 10, h: 10 }]
+    expect(bewerte(uebung(HOT, liste), [{ x: 20, y: 20 }, { x: 80, y: 80 }])).toBe(1)
+    expect(bewerte(uebung(HOT, liste), [{ x: 20, y: 20 }, { x: 50, y: 50 }])).toBe(0.5)
+  })
+  it('Hotspot bereinigen: mehrere Bereiche bleiben erhalten, `ziel` ist der erste', () => {
+    const z1 = { x: 50, y: 50, b: 20, h: 10 }
+    const z2 = { x: 70.04, y: 30, b: 15, h: 15 }
+    const h = bereinigeFrage({ ...HOT, inhalt: { ...HOT.inhalt, ziele: [z1, z2] } } as Frage)
+    expect(h.inhalt).toMatchObject({ ziel: z1, ziele: [z1, { x: 70 }] })
+    // „alle Bereiche nötig“ bleibt nur bei mehreren Bereichen erhalten
+    expect(bereinigeFrage({ ...HOT, inhalt: { ...HOT.inhalt, ziele: [z1, z2], alle: true } } as Frage).inhalt).toMatchObject({ alle: true })
+    expect((bereinigeFrage({ ...HOT, inhalt: { ...HOT.inhalt, alle: true } } as Frage).inhalt as Record<string, unknown>).alle).toBeUndefined()
+    // nur ein Bereich: Format wie bisher
+    expect((bereinigeFrage(HOT as Frage).inhalt as Record<string, unknown>).ziele).toBeUndefined()
+  })
 })
 
 describe('Neue Fragetypen am Handy', () => {
@@ -132,6 +154,21 @@ describe('Neue Fragetypen am Handy', () => {
     expect(screen.getByLabelText('Deine Wahl')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Antwort senden' }))
     expect(senden).toHaveBeenCalledWith({ x: 25, y: 75 })
+  })
+
+  it('Hotspot „alle Bereiche“: erst senden, wenn alle Stellen angetippt sind; Antwort ist eine Liste', async () => {
+    const senden = vi.fn()
+    const frage: SchuelerFrage = { typ: 'hotspot', text: 'x', zeitlimit: 0, punkte: 1, ansicht: { bild: 'https://x/b.webp', beschreibung: 'Karte', anzahl: 2 } }
+    render(<HandyEingabe frage={frage} senden={senden} />)
+    const bild = screen.getByRole('img', { name: 'Karte' })
+    bild.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 100, right: 100, bottom: 100, x: 0, y: 0, toJSON: () => ({}) })
+    await userEvent.pointer({ keys: '[MouseLeft]', target: bild, coords: { clientX: 10, clientY: 20 } })
+    expect(screen.getByRole('button', { name: 'Antwort senden' })).toBeDisabled()
+    expect(screen.getByText(/1 von 2/)).toBeInTheDocument()
+    await userEvent.pointer({ keys: '[MouseLeft]', target: bild, coords: { clientX: 70, clientY: 80 } })
+    expect(screen.getAllByLabelText('Deine Wahl')).toHaveLength(2)
+    await userEvent.click(screen.getByRole('button', { name: 'Antwort senden' }))
+    expect(senden).toHaveBeenCalledWith([{ x: 10, y: 20 }, { x: 70, y: 80 }])
   })
 
   it('Lösung und Teilpunkte nach dem Antworten', () => {

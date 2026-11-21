@@ -3,7 +3,7 @@ import { ANTWORT_STIL, FALSCH_STIL, WAHR_STIL } from '../lib/antwortStil.ts'
 import { lueckenAus, type Medium } from '../lib/fragetypen.ts'
 import { normalisiere, type AbgegebeneAntwort, type LehrkraftFrage } from '../lib/spiel.ts'
 import { Wortwolke as WolkeMitFrage } from '../wortwolke.tsx'
-import { HotspotBild, imZiel } from './HotspotBild.tsx'
+import { HotspotBild, alleZiele, inEinemZiel } from './HotspotBild.tsx'
 
 // Beamer-Ansicht (Lehrkraft, iPad quer): Frage und Auswertung je Fragetyp
 
@@ -412,13 +412,13 @@ export function BeamerAuswertung({ frage, antworten }: { frage: LehrkraftFrage; 
     }
     case 'hotspot': {
       const punkte = antworten
-        .map((a) => a.antwort as { x?: number; y?: number } | null)
+        .flatMap((a) => (Array.isArray(a.antwort) ? a.antwort : [a.antwort]) as ({ x?: number; y?: number } | null)[])
         .filter((p): p is { x: number; y: number } => typeof p?.x === 'number' && typeof p?.y === 'number')
-        .map((p) => ({ ...p, richtig: imZiel(p, frage.inhalt.ziel) }))
+        .map((p) => ({ ...p, richtig: inEinemZiel(p, alleZiele(frage.inhalt)) }))
       return (
         <div className="flex flex-col items-center gap-4">
-          <HotspotBild url={frage.inhalt.bild.url} beschreibung={frage.inhalt.bild.beschreibung} hoehe="max-h-[55vh]" ziel={frage.inhalt.ziel} punkte={punkte} zielBeschriftung="richtige Stelle" />
-          <Kennzahl wert={`${richtigeAnzahl} / ${antworten.length}`} text="haben die richtige Stelle getroffen" />
+          <HotspotBild url={frage.inhalt.bild.url} beschreibung={frage.inhalt.bild.beschreibung} hoehe="max-h-[55vh]" ziele={alleZiele(frage.inhalt)} punkte={punkte} zielBeschriftung="richtige Stelle" />
+          <Kennzahl wert={`${richtigeAnzahl} / ${antworten.length}`} text={frage.inhalt.alle ? 'haben alle Stellen getroffen' : 'haben die richtige Stelle getroffen'} />
         </div>
       )
     }

@@ -121,6 +121,10 @@ Inhalt von [`migrations/016_von_hand_bewerten.sql`](migrations/016_von_hand_bewe
 **bevor** die neue App-Version veröffentlicht wird (sonst klappt das Bewerten nicht und lange Antworten werden abgelehnt).
 Die alte App-Version funktioniert danach weiter.
 
+## 20. Bild-Hotspot mit mehreren Bereichen
+Inhalt von [`migrations/020_hotspot_mehrere_bereiche.sql`](migrations/020_hotspot_mehrere_bereiche.sql) im **SQL Editor** ausführen –
+**bevor** die neue App-Version veröffentlicht wird (sonst zählt nur der erste Bereich). Bestehende Fragen bleiben unverändert.
+
 ## Weitere Lehrkräfte
 - **Am einfachsten:** wie in Schritt 5 ein Konto mit Startpasswort anlegen. Die Lehrkraft ändert es nach der ersten Anmeldung über „Passwort ändern“.
 - **Per E-Mail-Einladung** (Users → Add user → Send invitation): Der eingebaute E-Mail-Versand von Supabase schickt nur an Mitglieder deines Supabase-Teams und nur wenige Mails pro Stunde. Für Einladungen an Kolleginnen und Kollegen muss vorher ein eigener SMTP-Server eingetragen werden (Authentication → Emails → SMTP Settings). Das gilt genauso für „Passwort vergessen?“.

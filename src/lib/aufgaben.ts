@@ -225,8 +225,8 @@ export function antwortAlsText(f: AufgabeFrage, a: unknown): string {
     case 'lueckentext':
       return Array.isArray(a) ? a.map((w, n) => `${n + 1}. ${w || '–'}`).join('; ') : ''
     case 'hotspot': {
-      const p = a as { x?: number; y?: number }
-      return typeof p?.x === 'number' ? `Stelle ${Math.round(p.x)} % / ${Math.round(p.y ?? 0)} %` : ''
+      const stellen = (Array.isArray(a) ? a : [a]) as { x?: number; y?: number }[]
+      return stellen.filter((p) => typeof p?.x === 'number').map((p) => `Stelle ${Math.round(p.x ?? 0)} % / ${Math.round(p.y ?? 0)} %`).join('; ')
     }
     default:
       return String(a)
