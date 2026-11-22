@@ -50,4 +50,4 @@ Neue Entscheidungen oben anfügen: Datum/Etappe, Entscheidung, Grund, verworfene
 - Musik läuft nicht, wenn die Frage selbst Audio/Video hat (sonst Überlagerung). 🔊/🔇-Schalter in der Kopfzeile, Wahl im localStorage (`ton-an`), Standard: an. Browser starten Audio erst nach einer Berührung (Motor wacht beim ersten Tippen auf).
 
 ## Einheitliche Farben (Dunkelgrün und Orange, lokal)
-- Startseite, Quizzo, Klassenfunk, Tafel (Lehrraum) und Notenbuch nutzen dieselbe Palette: Dunkelgrün `#0f5c47`, Orange `#ff8a14`. Quizzo und Klassenfunk behalten ihre Token-Namen (`quizzo-navy`, `funk-petrol` …), nur die Werte wurden getauscht. Logos von Quizzo (`public/logo*.png`) sind per Farbtausch umgefärbt.
+- Startseite, Quizzo, Klassenfunk, Tafel (Lehrraum) und Notenbuch nutzen dieselbe Palette: Dunkelgrün `#0f5c47`, Orange `#ff8a14`. Quizzo und Klassenfunk behalten ihre Token-Namen (`quizzo-navy`, `funk-petrol` …), nur die Werte wurden getauscht. Logos von Quizzo (`public/logo*.png`) sind per Farbtausch umgefärbt. Beim Schriftzug in `logo.png` wurde das Weiß nachträglich bereinigt (Maske geglättet, reines #fff, türkiser Randschleier in die dunkle Kontur überführt).
